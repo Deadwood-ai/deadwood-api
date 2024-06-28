@@ -1,4 +1,4 @@
-from typing import Optional, Union, Literal
+from typing import Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from pathlib import Path
@@ -29,12 +29,6 @@ class Settings(BaseSettings):
     metadata_table: str = 'metadata'
     processor_username: str = 'processor@deadtrees.earth'
     processor_password: str = 'processor'
-
-    # SFTP settings
-    storage_ssh_user: Optional[str] = None
-    storage_ssh_host: Optional[str] = None
-    storage_ssh_password: Optional[str] = None
-
 
     @property
     def base_path(self) -> Path:
