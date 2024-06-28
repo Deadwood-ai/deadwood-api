@@ -2,7 +2,7 @@ from typing import Optional
 from enum import Enum
 from datetime import datetime
 
-from pydantic import BaseModel, field_serializer, computed_field, field_validator
+from pydantic import BaseModel, field_serializer, field_validator
 from rasterio.coords import BoundingBox
 
 
@@ -26,33 +26,25 @@ class StatusEnum(str, Enum):
     audit_failed = "audit_failed"
 
 
-class FileUploadMetadata(BaseModel):
-    user_id: str
-    aquisition_date: datetime
-    upload_date: datetime
-    file_name: str
-    content_type: str
+class Dataset(BaseModel):
+    """
+    The Dataset class is the base class for each Dataset object in the database.
+    It contains the minimum required metadata to upload a GeoTiff and start processing.
+    It also contains the metadata, that cannot be changed after the upload by the user anymore.
+    
+    Additionally, it will be linked to the Metacata record, which is updatable for the user,
+    and links the Labels with a 1:m cardinality.
+    """
+    id: str
+    file_path: str
     file_size: int
-    raw_path: str
-    processed_path: Optional[str] = None
-    copy_time: float
-    uuid: str
-    sha256: str
-    platform: PlatformEnum
-    license: LicenseEnum
-    status: StatusEnum = StatusEnum.pending
-
-    # optional fields
-    compress_time: Optional[float] = None
-    wms_source: Optional[str] = None
-    bbox: Optional[BoundingBox] = None
-
-
-    @computed_field
-    @property
-    def file_id(self) -> str:
-        return f"{self.uuid}_{self.file_name}"
-
+    bbox: BoundingBox
+    cog_path: str
+    cog_url: str
+    cog_options: dict
+    user_id: str
+    created_at: datetime
+    
     @field_serializer('aquisition_date', 'upload_date', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
         return field.isoformat()
@@ -75,3 +67,56 @@ class FileUploadMetadata(BaseModel):
         if field is None:
             return None
         return f"BOX({field.bottom} {field.left}, {field.top} {field.right})"
+
+
+class Metadata(BaseModel):
+    """
+    Class for additional Metadata in the database. It has to be connected to a Dataset object
+    using a 1:1 cardinality.
+    This is separated, so that different RLS policies can apply. Additionally, this is the 
+    metadata that can potentially be 
+    """
+    # primary key
+    dataset_id: str
+    user_id: str
+
+    # now the metadata
+    name: str
+    license: LicenseEnum
+    platform: PlatformEnum
+    project_id: Optional[int] = None
+    authors: Optional[str] = None
+    spectral_properties: Optional[str] = None
+    citation_doi: Optional[str] = None
+    
+    # Gadm labels
+    gadm_name_1 = Optional[str] = None
+    gadm_name_2 = Optional[str] = None
+    gadm_name_3 = Optional[str] = None
+
+    created_at: datetime
+    
+    @field_serializer('aquisition_date', 'upload_date', mode='plain')
+    def datetime_to_isoformat(field: datetime) -> str:
+        return field.isoformat()
+
+
+class Label(BaseModel):
+    """
+    The Label class represents one set of a label - aoi combination.
+    Both need to be a single MULTIPOLYGON.
+    """
+    # primary key
+    id: int
+    dataset_id: str
+    user_id: str
+
+    # the label
+    aoi: dict
+    label: dict
+
+    created_at: datetime
+    
+    @field_serializer('aquisition_date', 'upload_date', mode='plain')
+    def datetime_to_isoformat(field: datetime) -> str:
+        return field.isoformat()
