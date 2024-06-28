@@ -35,17 +35,15 @@ class Dataset(BaseModel):
     Additionally, it will be linked to the Metacata record, which is updatable for the user,
     and links the Labels with a 1:m cardinality.
     """
-    id: str
+    id: int
     file_path: str
     file_size: int
     bbox: BoundingBox
-    cog_path: str
-    cog_url: str
-    cog_options: dict
+    status: StatusEnum
     user_id: str
     created_at: datetime
     
-    @field_serializer('aquisition_date', 'upload_date', mode='plain')
+    @field_serializer('created_at', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
         return field.isoformat()
     
@@ -67,6 +65,37 @@ class Dataset(BaseModel):
         if field is None:
             return None
         return f"BOX({field.bottom} {field.left}, {field.top} {field.right})"
+
+
+class Cog(BaseModel):
+    """
+    The Cog class is the base class for the cloud optimized geotiff.
+    Currently it is modelled using a 1:1 cardinality. It is not in its own table 
+    as the user_id is the processor which created the file (the user cannot change
+    the properties of the COG, but we can)
+    """
+    # primary key
+    dataset_id: str
+    cog_path: str
+
+    # basic metadata
+    cog_url: str
+    cog_size: int
+    created_at: datetime
+    runtime: int
+    user_id: str
+
+    # COG options
+    compression: str
+    overviews: str
+    resolution: int
+    blocksize: Optional[int] = None
+    compression_level: Optional[str] = None
+    tiling_scheme: Optional[str] = None
+
+    @field_serializer('created_at', mode='plain')
+    def datetime_to_isoformat(field: datetime) -> str:
+        return field.isoformat()
 
 
 class Metadata(BaseModel):
@@ -94,9 +123,9 @@ class Metadata(BaseModel):
     gadm_name_2 = Optional[str] = None
     gadm_name_3 = Optional[str] = None
 
-    created_at: datetime
+    aquisition_date: datetime
     
-    @field_serializer('aquisition_date', 'upload_date', mode='plain')
+    @field_serializer('aquisition_date', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
         return field.isoformat()
 
@@ -117,6 +146,6 @@ class Label(BaseModel):
 
     created_at: datetime
     
-    @field_serializer('aquisition_date', 'upload_date', mode='plain')
+    @field_serializer('created_at', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
         return field.isoformat()
