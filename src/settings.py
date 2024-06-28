@@ -26,9 +26,14 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # supabase settings
-    metadata_table: str = 'metadata'
     processor_username: str = 'processor@deadtrees.earth'
     processor_password: str = 'processor'
+
+    # tabe names
+    datasets: str = 'v1_datasets'
+    metadata: str = 'v1_metadata'
+    cogs: str = 'v1_cogs'
+    labels: str = 'v1_labels'
 
     @property
     def base_path(self) -> Path:
