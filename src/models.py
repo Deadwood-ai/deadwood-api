@@ -82,8 +82,7 @@ class Cog(BaseModel):
     # basic metadata
     cog_url: str
     cog_size: int
-    created_at: datetime
-    runtime: int
+    runtime: float
     user_id: str
 
     # COG options
@@ -93,6 +92,8 @@ class Cog(BaseModel):
     blocksize: Optional[int] = None
     compression_level: Optional[str] = None
     tiling_scheme: Optional[str] = None
+
+    created_at: datetime
 
     @field_serializer('created_at', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
@@ -108,6 +109,7 @@ class Metadata(BaseModel):
     """
     # primary key
     dataset_id: str
+    
     user_id: str
 
     # now the metadata
@@ -138,12 +140,14 @@ class Label(BaseModel):
     """
     # primary key
     id: int
+    
+    # the label
     dataset_id: str
     user_id: str
-
-    # the label
     aoi: dict
     label: dict
+    label_source: str
+    label_quality: str
 
     created_at: datetime
     
