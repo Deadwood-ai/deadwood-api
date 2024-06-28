@@ -6,3 +6,4 @@ python-multipart
 supabase
 prometheus-client
 rasterio
+fire
