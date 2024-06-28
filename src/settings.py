@@ -7,13 +7,18 @@ from pathlib import Path
 load_dotenv()
 
 
-BASE = str(Path(__file__).parent.parent.parent / "data")
+BASE = Path(__file__).parent / "data"
 
 
 # load the settings from environment variables
 class Settings(BaseSettings):
     # base directory for the storage app
-    base_dir: str = BASE
+    base_dir: str = str(BASE)
+
+    # directly specify the locations for several files
+    archive_dir: str = str(BASE / "archive")
+    cog_dir: str = str(BASE / "cogs")
+
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -43,5 +48,20 @@ class Settings(BaseSettings):
         
         return path
 
+    @property
+    def archive_path(self) -> Path:
+        path = Path(self.archive_dir)
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        
+        return path
+    
+    @property
+    def cog_path(self) -> Path:
+        path = Path(self.cog_dir)
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        
+        return path
 
 settings = Settings()

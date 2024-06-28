@@ -76,7 +76,8 @@ class Cog(BaseModel):
     """
     # primary key
     dataset_id: str
-    cog_path: str
+    cog_folder: str
+    cog_name: str
 
     # basic metadata
     cog_url: str
