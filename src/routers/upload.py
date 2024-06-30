@@ -1,9 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, UploadFile, Depends
+from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
 from ..models import Metadata
+from ..supabase import use_client
+from ..settings import settings
+from ..logger import logger
 
 # create the router for the upload
 router = APIRouter()
@@ -51,7 +54,7 @@ def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme
 
 
 @router.post("/{dataset_id}/metadata")
-def usert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
+def upsert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Insert or Update the metadata of a Dataset.
 
@@ -60,12 +63,31 @@ def usert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, De
     The token needs to include the access token of the user that is allowed to change the metadata.
 
     """
+    # update the given metadata  with the dataset_id
+    metadata.dataset_id = dataset_id
+    try:
+        # upsert the given metadata entry
+        with use_client(token) as client:
+            response = client.table(settings.metadata_table).upsert(metadata.model_dump()).execute()
+    except Exception as e:
+        err_msg = f"An error occurred while trying to upsert the metadata: {e}"
+        
+        # log the error to the database
+        logger.error(err_msg)
+
+        # return a response with the error message
+        return HTTPException(
+            status_code=400,
+            detail=err_msg
+        )
+
+    # no error occured, so return the upserted metadata
     return {
         "dataset_id": dataset_id,
-        "metadata": metadata.model_dump_json(),
-        "token": token,
-        "message": "THIS IS NOT YET IMPLEMENTED. This route will insert or update the metadata of a Dataset."
+        "metadata ": response.data,
+        "message": f"Dataset {dataset_id} updated."
     }
+
 
 # add function to add the labels in similar fashion
 
