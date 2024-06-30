@@ -35,10 +35,10 @@ class Settings(BaseSettings):
     processor_password: str = 'processor'
 
     # tabe names
-    datasets: str = 'v1_datasets'
-    metadata: str = 'v1_metadata'
-    cogs: str = 'v1_cogs'
-    labels: str = 'v1_labels'
+    datasets_table: str = 'v1_datasets'
+    metadata_table: str = 'v1_metadata'
+    cogs_table: str = 'v1_cogs'
+    labels_table: str = 'v1_labels'
 
     @property
     def base_path(self) -> Path:
