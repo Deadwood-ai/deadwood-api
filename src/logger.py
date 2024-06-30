@@ -25,7 +25,7 @@ class SupabaseHandler(logging.Handler):
             log.update(
                 file_id=self.last_dataset_id,
             )
-            self.last_metadata = None
+            self.last_dataset_id = None
 
         # connect to the database and log
         with supabase_client() as client:
