@@ -85,7 +85,8 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
 
     # fill the metadata
     dataset = Dataset(
-        file_path=target_path.name,
+        file_name=target_path.name,
+        file_alias=file.filename,
         file_size=target_path.stat().st_size,
         copy_time=t2 - t1,
         sha256=sha256,

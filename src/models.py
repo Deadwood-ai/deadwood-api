@@ -37,6 +37,7 @@ class Dataset(BaseModel):
     """
     id: int
     file_name: str
+    file_alias: str
     file_size: int
     copy_time: float
     sha256: str
