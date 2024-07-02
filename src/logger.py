@@ -1,7 +1,7 @@
 from typing import Optional
 import logging
 
-from supabase import supabase_client
+from .supabase import use_client
 
 # create a custom supabase handler
 class SupabaseHandler(logging.Handler):
@@ -28,7 +28,7 @@ class SupabaseHandler(logging.Handler):
             self.last_dataset_id = None
 
         # connect to the database and log
-        with supabase_client() as client:
+        with use_client() as client:
             # get the user
             log.update(user_id=client.user_id)
             client.table("logs").insert(log).execute()
