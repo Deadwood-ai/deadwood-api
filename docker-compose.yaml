@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8762:8762
+    volumes:
+      - ./data:/data
+    environment:
+      BASE_DIR: /data
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      UVICORN_PORT: 8762
+      UVICORN_HOST: 0.0.0.0
