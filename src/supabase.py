@@ -1,8 +1,9 @@
 from typing import Union, Generator, Literal, Optional
+from contextlib import contextmanager
 
 from supabase import create_client
 from supabase.client import Client
-from contextlib import contextmanager
+from gotrue import User
 
 from .settings import settings
 
@@ -19,14 +20,14 @@ def login(user: str, password: str):
     return auth_response
 
 
-def verify_token(jwt: str) -> Union[Literal[False], str]:
+def verify_token(jwt: str) -> Union[Literal[False], User]:
     # make the authentication
     with use_client(jwt) as client:
         response = client.auth.get_user(jwt)
     
     # check the token
     try:
-        return response.user.id
+        return response.user
     except Exception:
         return False
     
