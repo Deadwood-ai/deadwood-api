@@ -125,9 +125,9 @@ class Metadata(BaseModel):
     citation_doi: Optional[str] = None
     
     # Gadm labels
-    gadm_name_1 = Optional[str] = None
-    gadm_name_2 = Optional[str] = None
-    gadm_name_3 = Optional[str] = None
+    gadm_name_1: Optional[str] = None
+    gadm_name_2: Optional[str] = None
+    gadm_name_3: Optional[str] = None
 
     aquisition_date: datetime
     
