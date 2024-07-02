@@ -36,8 +36,10 @@ class Dataset(BaseModel):
     and links the Labels with a 1:m cardinality.
     """
     id: int
-    file_path: str
+    file_name: str
     file_size: int
+    copy_time: float
+    sha256: str
     bbox: BoundingBox
     status: StatusEnum
     user_id: str
