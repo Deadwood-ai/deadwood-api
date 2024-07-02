@@ -1,10 +1,15 @@
 from typing import Annotated
+import uuid
+from pathlib import Path
+import time
+import hashlib
+import rasterio
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from ..models import Metadata
-from ..supabase import use_client
+from ..models import Metadata, Dataset, StatusEnum
+from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
 
@@ -16,7 +21,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Main routes for the logic
 @router.post("/create")
-def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
+async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Create a new Dataset by uploading a GeoTIFF file.
 
@@ -46,11 +51,59 @@ def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme
     print(response.json())
     ```
     """
-    return {
-        "file_name": file.filename, 
-        "token": token, 
-        "message": "THIS IS NOT YET IMPLEMENTED. This route will create a new Dataset by uploading a GeoTIFF file. The response will contain a Dataset.id that is needed for subsequent calls to the API."
-    }
+    # first thing we do is verify the token
+    user = verify_token(token)
+    if not user:
+        return HTTPException(status_code=401, detail="Invalid token")
+    
+    # we create a uuid for this dataset
+    uid = str(uuid.uuid4)
+
+    # new file name
+    file_name = f"{uid}_{Path(file.filename).stem}.tif"
+
+    # use the settings path to figure out a new location for this file
+    target_path = settings.archive_path  / file_name
+
+    # start a timer
+    t1 = time.time()
+
+    # save the file
+    with target_path.open('wb') as buffer:
+        buffer.write(await file.read())
+    
+    # create the checksum
+    with target_path.open('rb') as f:
+        sha256 = hashlib.sha256(f.read()).hexdigest()
+
+    # try to open with rasterio
+    with rasterio.open(str(target_path), 'r') as src:
+        bounds = src.bounds
+    
+    # stop the timer
+    t2 = time.time()
+
+    # fill the metadata
+    dataset = Dataset(
+        file_path=target_path.name,
+        file_size=target_path.stat().st_size,
+        copy_time=t2 - t1,
+        sha256=sha256,
+        bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
+        stauts=StatusEnum.pending,
+        user_id=user.id
+    )
+
+    # upload the dataset
+    with use_client(token) as client:
+        try:
+            client.table(settings.datasets_table).insert(dataset.model_dump()).execute()
+        except Exception as e:
+            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"An error occurred while trying to upload the dataset: {str(e)}")
+    
+
+    return dataset
 
 
 @router.post("/{dataset_id}/metadata")
