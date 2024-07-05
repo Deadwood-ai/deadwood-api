@@ -35,7 +35,7 @@ class Dataset(BaseModel):
     Additionally, it will be linked to the Metacata record, which is updatable for the user,
     and links the Labels with a 1:m cardinality.
     """
-    id: int
+    id: Optional[int] = None
     file_name: str
     file_alias: str
     file_size: int
@@ -44,10 +44,12 @@ class Dataset(BaseModel):
     bbox: BoundingBox
     status: StatusEnum
     user_id: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     @field_serializer('created_at', mode='plain')
-    def datetime_to_isoformat(field: datetime) -> str:
+    def datetime_to_isoformat(field: datetime | None) -> str | None:
+        if field is None:
+            return None
         return field.isoformat()
     
     @field_validator('bbox', mode='before')
@@ -57,17 +59,17 @@ class Dataset(BaseModel):
             # parse the string
             s = raw_string.replace('BOX(', '').replace(')', '')
             ll, ur = s.split(',')
-            left, bottom = ll.split(' ')
-            right, upper = ur.split(' ')
-            return BoundingBox(float(left), float(bottom), float(right), float(upper))
+            left, bottom = ll.strip().split(' ')
+            right, upper = ur.strip().split(' ')
+            return BoundingBox(left=float(left), bottom=float(bottom), right=float(right), top=float(upper))
         else:
             return raw_string
 
     @field_serializer('bbox', mode='plain')
-    def bbox_to_postgis(field: BoundingBox) -> str:
-        if field is None:
+    def bbox_to_postgis(self, bbox: BoundingBox) -> str:
+        if bbox is None:
             return None
-        return f"BOX({field.bottom} {field.left}, {field.top} {field.right})"
+        return f"BOX({bbox.left} {bbox.bottom}, {bbox.right} {bbox.top})"
 
 
 class Cog(BaseModel):
