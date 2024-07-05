@@ -57,7 +57,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
         return HTTPException(status_code=401, detail="Invalid token")
     
     # we create a uuid for this dataset
-    uid = str(uuid.uuid4)
+    uid = str(uuid.uuid4())
 
     # new file name
     file_name = f"{uid}_{Path(file.filename).stem}.tif"
@@ -84,27 +84,32 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     t2 = time.time()
 
     # fill the metadata
-    dataset = Dataset(
+    #dataset = Dataset(
+    data = dict(
         file_name=target_path.name,
         file_alias=file.filename,
         file_size=target_path.stat().st_size,
         copy_time=t2 - t1,
         sha256=sha256,
-        bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
-        stauts=StatusEnum.pending,
+        #bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
+        bbox=bounds,
+        status=StatusEnum.pending,
         user_id=user.id
     )
+    # print(data)
+    dataset=Dataset(**data)
 
     # upload the dataset
     with use_client(token) as client:
         try:
-            client.table(settings.datasets_table).insert(dataset.model_dump()).execute()
+            send_data = {k: v for k, v in dataset.model_dump().items() if k != 'id' and v is not None}
+            response = client.table(settings.datasets_table).insert(send_data).execute()
         except Exception as e:
-            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}")
+            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}", extra={"token": token})
             raise HTTPException(status_code=400, detail=f"An error occurred while trying to upload the dataset: {str(e)}")
     
-
-    return dataset
+    # update the dataset with the id
+    return response.data[0]
 
 
 @router.post("/{dataset_id}/metadata")
@@ -127,7 +132,7 @@ def upsert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, D
         err_msg = f"An error occurred while trying to upsert the metadata: {e}"
         
         # log the error to the database
-        logger.error(err_msg)
+        logger.error(err_msg, extra={"token": token})
 
         # return a response with the error message
         return HTTPException(
@@ -136,6 +141,7 @@ def upsert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, D
         )
 
     # no error occured, so return the upserted metadata
+    logger.info(f"Userted metadata for Dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id})
     return {
         "dataset_id": dataset_id,
         "metadata ": response.data,
