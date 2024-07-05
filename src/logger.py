@@ -1,15 +1,9 @@
-from typing import Optional
 import logging
 
 from .supabase import use_client
 
 # create a custom supabase handler
 class SupabaseHandler(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        # set some caching options - can't find a better way right now
-        self.last_dataset_id: Optional[str] = None
-
     def emit(self, record: logging.LogRecord) -> None:
         # set the base information
         log = dict(
@@ -21,16 +15,28 @@ class SupabaseHandler(logging.Handler):
         )
 
         # check if we have a metadata object
-        if self.last_dataset_id is not None:
+        if hasattr(self, 'dataset_id'):
             log.update(
-                file_id=self.last_dataset_id,
+                file_id=self.dataset_id,
             )
-            self.last_dataset_id = None
+        
+        # set that there is no token
+        if not hasattr(self, 'token'):
+            self.token = None
+        
+        # add the user id
+        if hasattr(self, 'user_id'):
+            log.update(
+                user_id=self.user_id
+            )
 
         # connect to the database and log
-        with use_client() as client:
-            # get the user
-            log.update(user_id=client.user_id)
+        with use_client(self.token) as client:
+            # set an empty user id if there is none
+            if not hasattr(client, 'user_id'):
+                self.user_id = getattr(client, 'user_id', None)
+
+            log.update(user_id=self.user_id)
             client.table("logs").insert(log).execute()
 
 # create the logger
