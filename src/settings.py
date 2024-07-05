@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     base_dir: str = str(BASE)
 
     # directly specify the locations for several files
-    archive_dir: str = str(BASE / "archive")
-    cog_dir: str = str(BASE / "cogs")
+    archive_dir: str = "archive"
+    cog_dir: str = "cogs"
 
 
     # supabase settings for supabase authentication
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     @property
     def archive_path(self) -> Path:
-        path = Path(self.archive_dir)
+        path = self.base_path / self.archive_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
         
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     
     @property
     def cog_path(self) -> Path:
-        path = Path(self.cog_dir)
+        path = self.base_path / self.cog_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
         
