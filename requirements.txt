@@ -6,4 +6,5 @@ python-multipart
 supabase
 prometheus-client
 rasterio
+rio-cogeo
 fire
