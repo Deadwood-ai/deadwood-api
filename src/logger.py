@@ -37,7 +37,10 @@ class SupabaseHandler(logging.Handler):
                 self.user_id = getattr(client, 'user_id', None)
 
             log.update(user_id=self.user_id)
-            client.table("logs").insert(log).execute()
+            try:
+                client.table("logs").insert(log).execute()
+            except Exception as e:
+                print(f"An error occurred while trying to log to the database: {str(e)}")
 
 # create the logger
 logger = logging.getLogger("processor")

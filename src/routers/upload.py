@@ -113,7 +113,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
 
 
 @router.post("/{dataset_id}/metadata")
-def upsert_metadata(dataset_id: str, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
+def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Insert or Update the metadata of a Dataset.
 
