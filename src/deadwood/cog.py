@@ -1,49 +1,79 @@
+from pathlib import Path
+
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None):
-    # vorgefertigte Profile sind: 
-    # "jpeg", "webp", "zstd", "lzw", "deflate", "packbits", "lzma", "lerc", "lerc_deflate", "lerc_zstd", "raw"
+def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, skip_recreate: bool = False):
+    """
+    Converts a TIFF file to a Cloud Optimized GeoTIFF (COG) format using the specified profile and configuration.
+
+    Args:
+        tiff_file_path (str): Path to the input TIFF file.
+        cog_target_path (str): Path where the output COG file will be saved.
+        profile (str, optional): COG profile to use. Default is "webp".
+                                 Available profiles: "jpeg", "webp", "zstd", "lzw", "deflate", "packbits", "lzma",
+                                 "lerc", "lerc_deflate", "lerc_zstd", "raw".
+        overviews (int, optional): Decimation level for generating overviews. If not provided, inferred from data size.
+        skip_recreate (bool, optional): If True, skips recreating the COG if it already exists. Default is False.
+
+    Returns:
+        dict: Information about the generated COG file.
+
+    Raises:
+        RuntimeError: If COG validation fails.
+
+    Notes:
+        - The function uses the `cog_translate` function from the rio_cogeo library to perform the conversion.
+        - The output COG is validated using the `cog_validate` function.
+        - If validation fails, a RuntimeError is raised.
+        - The function returns information about the COG using the `cog_info` function.
+
+    Example:
+        >>> calculate_cog("input.tif", "output.cog.tif", profile="jpeg", overviews=3)
+
+    """
+    # check if the COG already exists
+    if skip_recreate and Path(cog_target_path).exists():
+        return cog_info(cog_target_path)
+
+    # get the output profile
     output_profile = cog_profiles.get(profile)
 
-    # zum nachvollziehen:
-    print(output_profile)
-
-    # optionales feintuning der settings:
+    # set the GDAL options directly:
     config = dict(
-        GDAL_NUM_THREADS="ALL_CPUS",
+        # GDAL_NUM_THREADS="ALL_CPUS",
+        GDAL_NUM_THREADS="2",
         GDAL_TIFF_INTERNAL_MASK=True,
         # GDAL_TIFF_OVR_BLOCKSIZE=f"{blocksize}",
     )
 
-    cog_translate(tiff_file_path,
-    cog_target_path,
-    output_profile,
-    config=config,
-    overview_level=overviews, # OGEO overview (decimation) level. By default, inferred from data size.
-    #overview_resampling=, # RasterIO Resampling algorithm for overviews
-    #zoom_level_strategy=, # Strategy to determine zoom level (same as in GDAL 3.2).
-        # Used only when either "web_optimized" argument is True, or `tms` is not None.
-        # LOWER will select the zoom level immediately below the theoretical computed non-integral zoom level, leading to subsampling.
-        # On the contrary, UPPER will select the immediately above zoom level, leading to oversampling.
-        # Defaults to AUTO which selects the closest zoom level.
-    #zoom_level=, # Zoom level number (starting at 0 for coarsest zoom level).
-        # If this option is specified, `--zoom-level-strategy` is ignored.
-        # In any case, it is used only when either "web_optimized" argument is True, or `tms` is not None.
-    #aligned_levels=, #Number of overview levels for which GeoTIFF tile and tiles defined in the tiling scheme match.
-        # Used only when either "web_optimized" argument is True, or `tms` is not None.
-        # Default is to use the maximum overview levels. Note: GDAL use number of resolution levels instead of overview levels.
-    #resampling=, #Warp Resampling algorithm.
-    #allow_intermediate_compression=, # Allow intermediate file compression to reduce memory/disk footprint.
-        # Note: This could reduce the speed of the process.
-    #additional_cog_metadata=, #  Additional dataset metadata to add to the COG.
-    use_cog_driver=True, # Use GDAL COG driver if set to True. COG driver is available starting with GDAL 3.1.
+    # run
+    cog_translate(
+        tiff_file_path,
+        cog_target_path,
+        output_profile,
+        config=config,
+        overview_level=overviews, 
+        use_cog_driver=True,
     )
 
-    if not cog_validate(cog_target_path):
+    if not validate(cog_target_path):
         # check if the cog is valid
         raise RuntimeError(f"Validation failed for {cog_target_path}")
 
     # return info
     return cog_info(cog_target_path)
 
+
+def validate(cog_path):
+    """
+    Validate a COG file.
+
+    Args:
+        cog_path (str): Path to the COG file.
+
+    Returns:
+        bool: True if the COG is valid, False otherwise.
+
+    """
+    return cog_validate(cog_path)
