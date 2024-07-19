@@ -80,7 +80,7 @@ class Cog(BaseModel):
     the properties of the COG, but we can)
     """
     # primary key
-    dataset_id: str
+    dataset_id: int
     cog_folder: str
     cog_name: str
 
@@ -92,13 +92,13 @@ class Cog(BaseModel):
 
     # COG options
     compression: str
-    overviews: str
+    overviews: int
     resolution: int
     blocksize: Optional[int] = None
     compression_level: Optional[str] = None
     tiling_scheme: Optional[str] = None
 
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     @field_serializer('created_at', mode='plain')
     def datetime_to_isoformat(field: datetime) -> str:
