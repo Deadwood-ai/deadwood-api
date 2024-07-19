@@ -101,7 +101,9 @@ class Cog(BaseModel):
     created_at: Optional[datetime] = None
 
     @field_serializer('created_at', mode='plain')
-    def datetime_to_isoformat(field: datetime) -> str:
+    def datetime_to_isoformat(field: datetime | None) -> str | None:
+        if field is None:
+            return None
         return field.isoformat()
 
 
