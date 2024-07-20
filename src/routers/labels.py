@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from ..supabase import verify_token, use_client
 from ..settings import settings
 from ..logger import logger
-from ..model import Dataset, Label
+from ..models import Dataset, Label
 from ..deadwood.labels import verify_labels
 
 # create the router for the labels
