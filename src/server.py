@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import prometheus_client
 
 from .__version__ import __version__
-from .routers import upload, info, auth, process
+from .routers import cog, upload, info, auth
 
 app = FastAPI(
     title="Deadwood-AI API",
@@ -31,7 +31,7 @@ app.include_router(upload.router)
 app.include_router(auth.router)
 
 # add the processing to the app
-app.include_router(process.router)
+app.include_router(cog.router)
 
 
 # add the prometheus metrics route

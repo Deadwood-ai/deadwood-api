@@ -33,7 +33,7 @@ class ProcessOptions(BaseSettings):
     force_recreate: Optional[bool] = False
 
 
-@router.post("/{dataset_id}/process")
+@router.put("/{dataset_id}/process")
 def process(dataset_id: int, options: Optional[ProcessOptions], token: Annotated[str, Depends(oauth2_scheme)]):
     """
     create a new 
