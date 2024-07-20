@@ -3,6 +3,7 @@ from enum import Enum
 from datetime import datetime
 
 from pydantic import BaseModel, field_serializer, field_validator
+from pydantic_geojson import MultiPolygonModel, PolygonModel
 from rasterio.coords import BoundingBox
 
 
@@ -146,13 +147,13 @@ class Label(BaseModel):
     Both need to be a single MULTIPOLYGON.
     """
     # primary key
-    id: int
+    id: Optional[int] = None
     
     # the label
     dataset_id: str
     user_id: str
-    aoi: dict
-    label: dict
+    aoi: PolygonModel
+    label: MultiPolygonModel
     label_source: str
     label_quality: str
 
