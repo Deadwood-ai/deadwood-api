@@ -48,12 +48,12 @@ def process(dataset_id: int, options: Optional[ProcessOptions], token: Annotated
         with use_client(token) as client:
             # filter using the given dataset_id
             response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
-            print(response)
+            
             # create the dataset
             dataset = Dataset(**response.data[0])
     except Exception as e:
         # log the error to the database
-        msg = f"Error processing dataset {dataset_id}: {str(e)}"
+        msg = f"Error loading dataset {dataset_id}: {str(e)}"
         logger.error(msg, extra={"token": token})
         
         return HTTPException(status_code=500, detail=msg)
@@ -120,6 +120,7 @@ def process(dataset_id: int, options: Optional[ProcessOptions], token: Annotated
 
     with use_client(token) as client:
         try:
+            # filter out the None data
             send_data = {k: v for k, v in cog.model_dump().items() if k != 'id' and v is not None}
             response = client.table(settings.cogs_table).insert(send_data).execute()
         except Exception as e:
@@ -132,9 +133,4 @@ def process(dataset_id: int, options: Optional[ProcessOptions], token: Annotated
     # if there was no error, update the status
     update_status(token, dataset.id, StatusEnum.processed)
 
-    return response.data[0]
-    
-
-
-
-    
+    return cog
