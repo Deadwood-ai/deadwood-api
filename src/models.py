@@ -27,6 +27,24 @@ class StatusEnum(str, Enum):
     audit_failed = "audit_failed"
 
 
+class LabelQualityEnum(Enum):
+    high = 3
+    medium = 2
+    low = 1
+
+
+class LabelSourceEnum(str, Enum):
+    visual = "visual"
+    model_prediction = "model_prediction"
+    fixed_model_prediction = "fixed_model_prediction"
+
+
+class LabelTypeEnum(str, Enum):
+    point_observation = "point_observation"
+    segmentation = "segmentation"
+    instance_segmentation = "instance_segmentation"
+
+
 class Dataset(BaseModel):
     """
     The Dataset class is the base class for each Dataset object in the database.
@@ -154,8 +172,9 @@ class Label(BaseModel):
     user_id: str
     aoi: PolygonModel
     label: MultiPolygonModel
-    label_source: str
-    label_quality: str
+    label_source: LabelSourceEnum
+    label_quality: LabelQualityEnum
+    type: LabelTypeEnum
 
     created_at: Optional[datetime] = None
     
