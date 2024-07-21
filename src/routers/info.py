@@ -38,7 +38,6 @@ def info(request: Request):
         ),
         endpoints=[
             dict(url=f"{url}/", description="Get information about the storage API."),
-            dict(url=f"{url}/upload", description="Upload a file to the server."),
             dict(url=f"{url}/docs", description="OpenAPI documentation - Swagger UI."),
             dict(url=f"{url}/redoc", description="OpenAPI documentation - ReDoc."),
         ],

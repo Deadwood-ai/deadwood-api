@@ -20,7 +20,7 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Main routes for the logic
-@router.post("/create")
+@router.post("/datasets")
 async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Create a new Dataset by uploading a GeoTIFF file.
@@ -50,6 +50,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     response = requests.post(url, files=files)
     print(response.json())
     ```
+
     """
     # first thing we do is verify the token
     user = verify_token(token)
@@ -112,7 +113,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     return response.data[0]
 
 
-@router.put("/{dataset_id}/metadata")
+@router.put("/datasets/{dataset_id}/metadata")
 def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Insert or Update the metadata of a Dataset.
@@ -147,8 +148,3 @@ def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, D
         "metadata ": response.data,
         "message": f"Dataset {dataset_id} updated."
     }
-
-
-# add function to add the labels in similar fashion
-
-# add GET requests to read the data without the need for the token
