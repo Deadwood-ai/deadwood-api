@@ -3,6 +3,7 @@ from enum import Enum
 from datetime import datetime
 
 from pydantic import BaseModel, field_serializer, field_validator
+from pydantic_geojson import MultiPolygonModel, PolygonModel
 from rasterio.coords import BoundingBox
 
 
@@ -24,6 +25,24 @@ class StatusEnum(str, Enum):
     processed = "processed"
     audited = "audited"
     audit_failed = "audit_failed"
+
+
+class LabelQualityEnum(Enum):
+    high = 3
+    medium = 2
+    low = 1
+
+
+class LabelSourceEnum(str, Enum):
+    visual = "visual"
+    model_prediction = "model_prediction"
+    fixed_model_prediction = "fixed_model_prediction"
+
+
+class LabelTypeEnum(str, Enum):
+    point_observation = "point_observation"
+    segmentation = "segmentation"
+    instance_segmentation = "instance_segmentation"
 
 
 class Dataset(BaseModel):
@@ -140,21 +159,31 @@ class Metadata(BaseModel):
         return field.isoformat()
 
 
-class Label(BaseModel):
+class LabelPayloadData(BaseModel):
+    """
+    The LabelPayloadData class is the base class for the payload of the label.
+    This is the user provided data, before the Labels are validated and saved to
+    the database.
+
+    """
+    aoi: PolygonModel
+    label: MultiPolygonModel
+    label_source: LabelSourceEnum
+    label_quality: LabelQualityEnum
+    type: LabelTypeEnum
+
+
+class Label(LabelPayloadData):
     """
     The Label class represents one set of a label - aoi combination.
     Both need to be a single MULTIPOLYGON.
     """
     # primary key
-    id: int
+    id: Optional[int] = None
     
     # the label
     dataset_id: str
     user_id: str
-    aoi: dict
-    label: dict
-    label_source: str
-    label_quality: str
 
     created_at: Optional[datetime] = None
     

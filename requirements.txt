@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 pydantic-settings
+pydantic_geojson
 python-dotenv
 python-multipart
 supabase

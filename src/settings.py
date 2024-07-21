@@ -7,7 +7,7 @@ from pathlib import Path
 load_dotenv()
 
 
-BASE = Path(__file__).parent / "data"
+BASE = Path(__file__).parent.parent / "data"
 
 
 # load the settings from environment variables
