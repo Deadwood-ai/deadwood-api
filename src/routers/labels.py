@@ -1,14 +1,12 @@
 from typing import Annotated
 
-from pydantic import BaseModel
-from pydantic_geojson import MultiPolygonModel, PolygonModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
 from ..supabase import verify_token, use_client
 from ..settings import settings
 from ..logger import logger
-from ..models import Dataset, Label
+from ..models import Dataset, Label, LabelPayloadData
 from ..deadwood.labels import verify_labels
 
 # create the router for the labels
@@ -18,16 +16,8 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-# create a model fot the user input
-class UserLabelInput(BaseModel):
-    aoi: PolygonModel
-    label: MultiPolygonModel
-    source: str
-    quality: str
-
-
-@router.post("/{dataset_id}/labels")
-def create_new_labels(dataset_id: int, data: UserLabelInput, token: Annotated[str, Depends(oauth2_scheme)]):
+@router.post("/datasets/{dataset_id}/labels")
+def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     """
     # first thing we do is verify the token
@@ -93,5 +83,7 @@ def create_new_labels(dataset_id: int, data: UserLabelInput, token: Annotated[st
             logger.error(msg, extra={"token": token, dataset_id: dataset.id})
             return HTTPException(status_code=400, detail=msg)
     
+    # re-build the label from the response
+    label = Label(**response.data[0])
     return label
 

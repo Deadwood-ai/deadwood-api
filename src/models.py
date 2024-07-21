@@ -159,7 +159,21 @@ class Metadata(BaseModel):
         return field.isoformat()
 
 
-class Label(BaseModel):
+class LabelPayloadData(BaseModel):
+    """
+    The LabelPayloadData class is the base class for the payload of the label.
+    This is the user provided data, before the Labels are validated and saved to
+    the database.
+
+    """
+    aoi: PolygonModel
+    label: MultiPolygonModel
+    label_source: LabelSourceEnum
+    label_quality: LabelQualityEnum
+    type: LabelTypeEnum
+
+
+class Label(LabelPayloadData):
     """
     The Label class represents one set of a label - aoi combination.
     Both need to be a single MULTIPOLYGON.
@@ -170,11 +184,6 @@ class Label(BaseModel):
     # the label
     dataset_id: str
     user_id: str
-    aoi: PolygonModel
-    label: MultiPolygonModel
-    label_source: LabelSourceEnum
-    label_quality: LabelQualityEnum
-    type: LabelTypeEnum
 
     created_at: Optional[datetime] = None
     
