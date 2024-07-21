@@ -1,9 +1,9 @@
 from typing import Annotated
 
+from pydantic import BaseModel
 from pydantic_geojson import MultiPolygonModel, PolygonModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-
 
 from ..supabase import verify_token, use_client
 from ..settings import settings
@@ -19,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 # create a model fot the user input
-class UserLabelInput:
+class UserLabelInput(BaseModel):
     aoi: PolygonModel
     label: MultiPolygonModel
     source: str
