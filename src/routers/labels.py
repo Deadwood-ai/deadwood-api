@@ -8,6 +8,7 @@ from ..settings import settings
 from ..logger import logger
 from ..models import Dataset, Label, LabelPayloadData
 from ..deadwood.labels import verify_labels
+from .. import monitoring
 
 # create the router for the labels
 router = APIRouter()
@@ -20,6 +21,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     """
+    # count an invoke
+    monitoring.labels_invoked.inc()
+
     # first thing we do is verify the token
     user = verify_token(token)
     if not user:
@@ -85,5 +89,9 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
     
     # re-build the label from the response
     label = Label(**response.data[0])
+
+    # do some monitoring
+    monitoring.labels_counter.inc()
+    
     return label
 

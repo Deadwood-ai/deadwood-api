@@ -12,6 +12,7 @@ from ..models import Metadata, Dataset, StatusEnum
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
+from  .. import monitoring
 
 # create the router for the upload
 router = APIRouter()
@@ -52,6 +53,9 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     ```
 
     """
+    # count an invoke
+    monitoring.uploads_invoked.inc()
+
     # first thing we do is verify the token
     user = verify_token(token)
     if not user:
@@ -110,7 +114,14 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
             raise HTTPException(status_code=400, detail=f"An error occurred while trying to upload the dataset: {str(e)}")
     
     # update the dataset with the id
-    return response.data[0]
+    dataset = Dataset(**response.data[0])
+    
+    # do some monitoring
+    monitoring.uploads_counter.inc()
+    monitoring.upload_time.observe(dataset.copy_time)
+    monitoring.upload_size.observe(dataset.file_size)
+
+    return dataset
 
 
 @router.put("/datasets/{dataset_id}/metadata")
@@ -123,6 +134,9 @@ def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, D
     The token needs to include the access token of the user that is allowed to change the metadata.
 
     """
+    # count an invoke
+    monitoring.metadata_invoked.inc()
+
     # update the given metadata  with the dataset_id
     metadata.dataset_id = dataset_id
     try:
@@ -143,8 +157,9 @@ def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, D
 
     # no error occured, so return the upserted metadata
     logger.info(f"Userted metadata for Dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id})
-    return {
-        "dataset_id": dataset_id,
-        "metadata ": response.data,
-        "message": f"Dataset {dataset_id} updated."
-    }
+    
+    # update the metadata
+    metadata = Metadata(**response.data[0])
+    monitoring.metadata_counter.inc()
+
+    return metadata
