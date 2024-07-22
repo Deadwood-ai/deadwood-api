@@ -22,5 +22,15 @@ def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
     with Image.open(tiff_file_path) as img:
         # create the thumbnail
         img.thumbnail(size)
+        # Create a new image with a white background (or any other color you prefer)
+        thumb = Image.new("RGB", size, (255, 255, 255))
+
+        # Calculate position to center the image
+        thumb_width, thumb_height = img.size
+        offset = ((size[0] - thumb_width) // 2, (size[1] - thumb_height) // 2)
+
+        # Paste the thumbnail image onto the square background
+        thumb.paste(img, offset)
+
         # save the thumbnail
-        img.save(thumbnail_target_path)
+        thumb.save(thumbnail_target_path)
