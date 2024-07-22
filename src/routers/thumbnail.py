@@ -53,22 +53,25 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     thumbnail_target_path = Path(settings.thumbnail_path) / dataset.file_name.replace(
         ".tif", ".jpg"
     )
-    # if the thumbnail already exists, skip the creation
-    if not thumbnail_target_path.exists():
-        try:
-            calculate_thumbnail(tiff_file_path, thumbnail_target_path)
-        except Exception as e:
-            # log the error to the database
-            msg = f"Error creating thumbnail for dataset {dataset_id}: {str(e)}"
-            logger.error(msg, extra={"token": token})
+    # if the thumbnail already exists, remove it
+    if thumbnail_target_path.exists():
+        thumbnail_target_path.unlink()
 
-            return HTTPException(status_code=500, detail=msg)
+    # create the thumbnail
+    try:
+        calculate_thumbnail(tiff_file_path, thumbnail_target_path)
+    except Exception as e:
+        # log the error to the database
+        msg = f"Error creating thumbnail for dataset {dataset_id}: {str(e)}"
+        logger.error(msg, extra={"token": token})
 
-        # update or adding url to either v1_datasets or v1_metadata
-        # for now, not implemented. If made public via the webserver, I can create the URL in the frontend.
-        # This is a placeholder for now.
+        return HTTPException(status_code=500, detail=msg)
 
-        return {
-            "message": "Thumbnail created successfully",
-            "thumbnail_path": thumbnail_target_path,
-        }
+    # update or adding url to either v1_datasets or v1_metadata
+    # for now, not implemented. If made public via the webserver, I can create the URL in the frontend.
+    # This is a placeholder for now.
+
+    return {
+        "message": "Thumbnail created successfully",
+        "thumbnail_path": thumbnail_target_path,
+    }
