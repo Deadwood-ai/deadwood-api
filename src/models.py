@@ -28,12 +28,6 @@ class StatusEnum(str, Enum):
     audit_failed = "audit_failed"
 
 
-class LabelQualityEnum(Enum):
-    high = 3
-    medium = 2
-    low = 1
-
-
 class LabelSourceEnum(str, Enum):
     visual = "visual"
     model_prediction = "model_prediction"
@@ -181,8 +175,8 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
     aoi: PolygonModel
     label: MultiPolygonModel
     label_source: LabelSourceEnum
-    label_quality: LabelQualityEnum
-    type: LabelTypeEnum
+    label_quality: int
+    label_type: LabelTypeEnum
 
 PartialLabelPayloadData = LabelPayloadData.model_as_partial()
 
@@ -196,7 +190,7 @@ class Label(LabelPayloadData):
     id: Optional[int] = None
     
     # the label
-    dataset_id: str
+    dataset_id: int
     user_id: str
 
     created_at: Optional[datetime] = None
