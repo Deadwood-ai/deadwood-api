@@ -20,6 +20,17 @@ router = APIRouter()
 # create the OAuth2 password scheme for supabase login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# little helper
+def format_size(size: int) -> str:
+    if size < 1024:
+        return f"{size} bytes"
+    elif size < 1024**2:
+        return f"{size / 1024:.2f} KB"
+    elif size < 1024**3:
+        return f"{size / 1024**2:.2f} MB"
+    else:
+        return f"{size / 1024**3:.2f} GB"
+
 # Main routes for the logic
 @router.post("/datasets")
 async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
@@ -121,6 +132,11 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     monitoring.upload_time.observe(dataset.copy_time)
     monitoring.upload_size.observe(dataset.file_size)
 
+    logger.info(
+        f"Created new dataset <ID={dataset.id}> with file {dataset.file_alias}. ({format_size(dataset.file_size)}). Took {dataset.copy_time:.2f}s.", 
+        extra={"token": token, "user_id": user.id, "dataset_id": dataset.id}
+    )
+
     return dataset
 
 
@@ -180,7 +196,7 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         )
 
     # no error occured, so return the upserted metadata
-    logger.info(f"Upserted metadata for Dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
+    logger.info(f"Upserted metadata for Dataset {dataset_id}. Upsert payload provided by user: {payload}", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
     
     # update the metadata
     metadata = Metadata(**response.data[0])
