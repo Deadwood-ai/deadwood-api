@@ -22,7 +22,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
     """
     """
     # count an invoke
-    monitoring.labels_invoked.inc()
+    monitoring.label_invoked.inc()
 
     # first thing we do is verify the token
     user = verify_token(token)
@@ -60,8 +60,9 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
         user_id=user.id,
         aoi=data.aoi,
         label=data.label,
-        label_source=data.source,
-        label_quality=data.quality
+        label_source=data.label_source,
+        label_quality=data.label_quality,
+        label_type=data.label_type
     )
 
     try:
@@ -89,7 +90,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
     label = Label(**response.data[0])
 
     # do some monitoring
-    monitoring.labels_counter.inc()
+    monitoring.label_counter.inc()
     logger.info(f"Created new label <ID={label.id}> for dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
     
     return label
