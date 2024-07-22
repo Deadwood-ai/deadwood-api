@@ -58,7 +58,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
     except Exception as e:
         # log the error to the database
         msg = f"Error loading dataset {dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
         
         return HTTPException(status_code=500, detail=msg)
 
@@ -94,7 +94,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
         update_status(token, dataset.id, StatusEnum.errored)
 
         # log the error to the database
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
         return HTTPException(status_code=500, detail=msg)
     
     # get the size of the output file
@@ -130,7 +130,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
         except Exception as e:
             msg = f"An error occured while trying to save the COG metadata for dataset {dataset_id}: {str(e)}"
 
-            logger.error(msg, extra={"token": token})
+            logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
             update_status(token, dataset.id, StatusEnum.errored)
             return HTTPException(status_code=500, detail=msg)
     
@@ -141,5 +141,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
     monitoring.cogs_counter.inc()
     monitoring.cog_time.observe(cog.runtime)
     monitoring.cog_size.observe(cog.cog_size)
+
+    logger.info(f"Finished creating new COG <profile: {cog.compression}> for dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
 
     return cog

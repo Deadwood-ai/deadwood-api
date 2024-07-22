@@ -40,7 +40,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
     except Exception as e:
         # log the error to the database
         msg = f"Error loading dataset {dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
         
         return HTTPException(status_code=500, detail=msg)
     
@@ -50,7 +50,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
     except Exception as e:
         # log the error to the database
         msg = f"Invalid label data: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
 
         return HTTPException(status_code=400, detail=msg)
 
@@ -64,14 +64,12 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
         label_quality=data.quality
     )
 
-    # dev
-    print(meta)
     try:
         label = Label(**meta)
     except Exception as e:
         # log the error to the database
         msg = f"Error creating label object: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset.id})
 
         return HTTPException(status_code=400, detail=msg)
 
@@ -84,7 +82,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
             msg = f"An error occurred while trying to upload the label: {str(e)}"
 
             # log the error to the database
-            logger.error(msg, extra={"token": token, dataset_id: dataset.id})
+            logger.error(msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
             return HTTPException(status_code=400, detail=msg)
     
     # re-build the label from the response
@@ -92,6 +90,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 
     # do some monitoring
     monitoring.labels_counter.inc()
+    logger.info(f"Created new label <ID={label.id}> for dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
     
     return label
 
