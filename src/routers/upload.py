@@ -110,7 +110,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
             send_data = {k: v for k, v in dataset.model_dump().items() if k != 'id' and v is not None}
             response = client.table(settings.datasets_table).insert(send_data).execute()
         except Exception as e:
-            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}", extra={"token": token})
+            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}", extra={"token": token, "user_id": user.id})
             raise HTTPException(status_code=400, detail=f"An error occurred while trying to upload the dataset: {str(e)}")
     
     # update the dataset with the id
@@ -158,7 +158,7 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
     except Exception as e:
         msg = f"An error occurred while trying to create the updated metadata: {str(e)}"
 
-        logger.exception(msg, extra={"token": token, "dataset_id": dataset_id})
+        logger.exception(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
         return HTTPException(status_code=400, detail=msg)
 
 
@@ -171,7 +171,7 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         err_msg = f"An error occurred while trying to upsert the metadata: {e}"
         
         # log the error to the database
-        logger.error(err_msg, extra={"token": token})
+        logger.error(err_msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
 
         # return a response with the error message
         return HTTPException(
@@ -180,7 +180,7 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         )
 
     # no error occured, so return the upserted metadata
-    logger.info(f"Userted metadata for Dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id})
+    logger.info(f"Upserted metadata for Dataset {dataset_id}.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
     
     # update the metadata
     metadata = Metadata(**response.data[0])
