@@ -11,6 +11,7 @@ from ..settings import settings
 from ..models import Dataset, Cog, StatusEnum
 from ..logger import logger
 from ..deadwood.cog import calculate_cog
+from .. import monitoring
 
 
 # create the router for the processing
@@ -38,6 +39,9 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
     """
     
     """
+    # count an invoke
+    monitoring.cogs_invoked.inc()
+
     # first thing we do is verify the token
     user = verify_token(token)
     if not user:
@@ -132,5 +136,10 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
     
     # if there was no error, update the status
     update_status(token, dataset.id, StatusEnum.processed)
+
+    # monitoring
+    monitoring.cogs_counter.inc()
+    monitoring.cog_time.observe(cog.runtime)
+    monitoring.cog_size.observe(cog.cog_size)
 
     return cog
