@@ -1,6 +1,7 @@
 import logging
 
 from .supabase import use_client
+from .__version__ import __version__
 
 # create a custom supabase handler
 class SupabaseHandler(logging.Handler):
@@ -12,6 +13,7 @@ class SupabaseHandler(logging.Handler):
             message=self.format(record),
             origin=record.filename,
             origin_line=record.lineno,
+            backend_version=__version__
         )
 
         # check if we have a metadata object
