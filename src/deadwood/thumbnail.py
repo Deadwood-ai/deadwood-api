@@ -5,14 +5,14 @@ from ..settings import settings
 Image.MAX_IMAGE_PIXELS = None
 
 
-def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(128, 128)):
+def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
     """
     Creates a thumbnail from a TIFF file.
 
     Args:
         tiff_file_path (str): Path to the TIFF file.
         thumbnail_target_path (str): Path to save the thumbnail.
-        size (tuple, optional): Size of the thumbnail. Default is (128, 128).
+        size (tuple, optional): Size of the thumbnail. Default is (256, 256).
 
     Returns:
         None
