@@ -8,7 +8,7 @@ import rasterio
 from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from ..models import Metadata, Dataset, StatusEnum
+from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
@@ -125,7 +125,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
 
 
 @router.put("/datasets/{dataset_id}/metadata")
-def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, Depends(oauth2_scheme)]):
+def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annotated[str, Depends(oauth2_scheme)]):
     """
     Insert or Update the metadata of a Dataset.
 
@@ -137,12 +137,36 @@ def upsert_metadata(dataset_id: int, metadata: Metadata, token: Annotated[str, D
     # count an invoke
     monitoring.metadata_invoked.inc()
 
-    # update the given metadata  with the dataset_id
-    metadata.dataset_id = dataset_id
+    # first thing we do is verify the token
+    user = verify_token(token)
+    if not user:
+        return HTTPException(status_code=401, detail="Invalid token")
+
+    # load the metadata info - if it already exists in the database
+    with use_client(token) as client:
+        response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
+
+        if len(response.data) == 1:
+            metadata = Metadata(**response.data[0]).model_dump()
+        else:
+            metadata = {'dataset_id': dataset_id, 'user_id': user.id}
+
+    # update the given metadata if any with the payload
     try:
-        # upsert the given metadata entry
+        metadata.update(**{k: v for k, v in payload.model_dump().items() if v is not None})
+        metadata = Metadata(**metadata)
+    except Exception as e:
+        msg = f"An error occurred while trying to create the updated metadata: {str(e)}"
+
+        logger.exception(msg, extra={"token": token, "dataset_id": dataset_id})
+        return HTTPException(status_code=400, detail=msg)
+
+
+    try:
+        # upsert the given metadata entry with the merged data
         with use_client(token) as client:
-            response = client.table(settings.metadata_table).upsert(metadata.model_dump()).execute()
+            send_data = {k: v for k, v in metadata.model_dump().items() if v is not None}
+            response = client.table(settings.metadata_table).upsert(send_data).execute()
     except Exception as e:
         err_msg = f"An error occurred while trying to upsert the metadata: {e}"
         
