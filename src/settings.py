@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # directly specify the locations for several files
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
-
+    thumbnail_dir: str = "thumbnails"
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -31,21 +31,21 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # supabase settings
-    processor_username: str = 'processor@deadtrees.earth'
-    processor_password: str = 'processor'
+    processor_username: str = "processor@deadtrees.earth"
+    processor_password: str = "processor"
 
     # tabe names
-    datasets_table: str = 'v1_datasets'
-    metadata_table: str = 'v1_metadata'
-    cogs_table: str = 'v1_cogs'
-    labels_table: str = 'v1_labels'
+    datasets_table: str = "v1_datasets"
+    metadata_table: str = "v1_metadata"
+    cogs_table: str = "v1_cogs"
+    labels_table: str = "v1_labels"
 
     @property
     def base_path(self) -> Path:
         path = Path(self.base_dir)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
 
     @property
@@ -53,15 +53,24 @@ class Settings(BaseSettings):
         path = self.base_path / self.archive_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
-    
+
     @property
     def cog_path(self) -> Path:
         path = self.base_path / self.cog_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
+
+    @property
+    def thumbnail_path(self) -> Path:
+        path = self.base_path / self.thumbnail_dir
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+
+        return path
+
 
 settings = Settings()
