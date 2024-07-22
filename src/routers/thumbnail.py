@@ -54,6 +54,8 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
         ".tif", ".jpg"
     )
     # if the thumbnail already exists, remove it
+    # this way we could recreate the thumbnail if needed, but up for discussion
+
     if thumbnail_target_path.exists():
         thumbnail_target_path.unlink()
 
