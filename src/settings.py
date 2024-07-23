@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # directly specify the locations for several files
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
-    thumbnail_dir: str = "thumbnails"
+    thumbnail_bucket: str = "v1_thumbnails"
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -59,14 +59,6 @@ class Settings(BaseSettings):
     @property
     def cog_path(self) -> Path:
         path = self.base_path / self.cog_dir
-        if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)
-
-        return path
-
-    @property
-    def thumbnail_path(self) -> Path:
-        path = self.base_path / self.thumbnail_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 

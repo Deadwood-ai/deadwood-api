@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api:
@@ -13,5 +13,15 @@ services:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
+      # DATASETS_TABLE: v1_datasets
+      # METADATA_TABLE: v1_metadata
+      # COGS_TABLE: v1_cogs
+      # LABELS_TABLE: v1_labels
+      # THUMBNAIL_BUCKET: v1_thumbnails
+      DATASETS_TABLE: dev_datasets
+      METADATA_TABLE: dev_metadata
+      COGS_TABLE: dev_cogs
+      LABELS_TABLE: dev_labels
+      THUMBNAIL_BUCKET: dev_thumbnails
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
