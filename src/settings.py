@@ -9,7 +9,6 @@ load_dotenv()
 
 
 BASE = Path(__file__).parent.parent / "data"
-USE_DEV_TABLES = os.getenv("USE_DEV_TABLES", "False") == "True"
 
 
 # load the settings from environment variables
@@ -36,16 +35,10 @@ class Settings(BaseSettings):
     processor_password: str = "processor"
 
     # tabe names
-    if USE_DEV_TABLES:
-        datasets_table: str = "dev_datasets"
-        metadata_table: str = "dev_metadata"
-        cogs_table: str = "dev_cogs"
-        labels_table: str = "dev_labels"
-    else:
-        datasets_table: str = "v1_datasets"
-        metadata_table: str = "v1_metadata"
-        cogs_table: str = "v1_cogs"
-        labels_table: str = "v1_labels"
+    datasets_table: str = "v1_datasets"
+    metadata_table: str = "v1_metadata"
+    cogs_table: str = "v1_cogs"
+    labels_table: str = "v1_labels"
 
     @property
     def base_path(self) -> Path:
