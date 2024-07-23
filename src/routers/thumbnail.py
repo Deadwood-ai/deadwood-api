@@ -49,10 +49,13 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     # get the file path
     tiff_file_path = Path(settings.archive_path) / dataset.file_name
     thumbnail_file_name = dataset.file_name.replace(".tif", ".jpg")
-    thumbnail_bucket = settings.thumbnail_bucket
+    thumbnail_target_path = Path(settings.tmp_path) / thumbnail_file_name
+
+    if thumbnail_target_path.exists():
+        thumbnail_target_path.unlink()
 
     try:
-        thumb = calculate_thumbnail(tiff_file_path)
+        calculate_thumbnail(tiff_file_path, thumbnail_target_path)
     except Exception as e:
         # log the error to the database
         msg = f"Error creating thumbnail for dataset {dataset_id}: {str(e)}"
@@ -63,20 +66,23 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     # check if file is already in the bucket
     try:
         with use_client(token) as client:
-            response = client.storage.from_(settings.thumbnail_bucket).upload(
-                file=thumb.tobytes(),
+            response_thumbnails = client.storage.from_(
+                settings.thumbnail_bucket
+            ).upload(
+                file=thumbnail_target_path,
                 path=thumbnail_file_name,
-                content_type="image/jpeg",
-                insert=True,
+                file_options={"content-type": "image/jpeg"},
+                # content_type="image/jpeg",
+                # insert=True,
             )
     except Exception as e:
         # log the error to the database
-        msg = f"Error uploading thumbnail for dataset {dataset_id}: {str(e)}"
+        msg = f"Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name} thumbnail_bucket: {settings.thumbnail_bucket}"
         logger.error(msg, extra={"token": token})
 
         return HTTPException(status_code=500, detail=msg)
 
     return {
         "message": "Thumbnail uploaded successfully",
-        "message": response,
+        "message": response_thumbnails,
     }

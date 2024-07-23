@@ -5,7 +5,7 @@ from ..settings import settings
 Image.MAX_IMAGE_PIXELS = None
 
 
-def calculate_thumbnail(tiff_file_path, size=(256, 256)):
+def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
     """
     Creates a thumbnail from a TIFF file.
 
@@ -15,7 +15,7 @@ def calculate_thumbnail(tiff_file_path, size=(256, 256)):
         size (tuple, optional): Size of the thumbnail. Default is (256, 256).
 
     Returns:
-        image: The thumbnail image.
+       None
 
     """
     # open the image
@@ -33,5 +33,8 @@ def calculate_thumbnail(tiff_file_path, size=(256, 256)):
         thumb.paste(img, offset)
 
         # save the thumbnail
-        # thumb.save(thumbnail_target_path)
-        return thumb
+        thumb.save(thumbnail_target_path)
+        # return thumb
+
+
+#
