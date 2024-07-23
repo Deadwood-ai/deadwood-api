@@ -2,12 +2,14 @@ from typing import Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from pathlib import Path
+import os
 
 # load an .env file if it exists
 load_dotenv()
 
 
 BASE = Path(__file__).parent.parent / "data"
+USE_DEV_TABLES = os.getenv("USE_DEV_TABLES", "False") == "True"
 
 
 # load the settings from environment variables
@@ -18,7 +20,6 @@ class Settings(BaseSettings):
     # directly specify the locations for several files
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
-
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -31,21 +32,27 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # supabase settings
-    processor_username: str = 'processor@deadtrees.earth'
-    processor_password: str = 'processor'
+    processor_username: str = "processor@deadtrees.earth"
+    processor_password: str = "processor"
 
     # tabe names
-    datasets_table: str = 'v1_datasets'
-    metadata_table: str = 'v1_metadata'
-    cogs_table: str = 'v1_cogs'
-    labels_table: str = 'v1_labels'
+    if USE_DEV_TABLES:
+        datasets_table: str = "dev_datasets"
+        metadata_table: str = "dev_metadata"
+        cogs_table: str = "dev_cogs"
+        labels_table: str = "dev_labels"
+    else:
+        datasets_table: str = "v1_datasets"
+        metadata_table: str = "v1_metadata"
+        cogs_table: str = "v1_cogs"
+        labels_table: str = "v1_labels"
 
     @property
     def base_path(self) -> Path:
         path = Path(self.base_dir)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
 
     @property
@@ -53,15 +60,16 @@ class Settings(BaseSettings):
         path = self.base_path / self.archive_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
-    
+
     @property
     def cog_path(self) -> Path:
         path = self.base_path / self.cog_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
+
 
 settings = Settings()
