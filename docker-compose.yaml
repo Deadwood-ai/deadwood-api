@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -15,3 +13,24 @@ services:
       SUPABASE_KEY: ${SUPABASE_KEY}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
+  
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/data
+      - ./src:/app/src
+    links:
+      - api
+    environment:
+      BASE_DIR: /data
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      SUPABASE_USER: processor@deadtrees.earth
+      SUPABASE_PASSWORD: ${SUPABASE_PASSWORD}
+      OLD_ARCHIVE_PATH: /data/to_migrate
+      API_URL: http://api:8762
+
+      # migration metadata
+      MIGRATION_TABLE: migrate_v1
