@@ -29,7 +29,7 @@ class StatusEnum(str, Enum):
 
 
 class LabelSourceEnum(str, Enum):
-    visual = "visual"
+    visual_interpretation = "visual_interpretation"
     model_prediction = "model_prediction"
     fixed_model_prediction = "fixed_model_prediction"
 
@@ -38,6 +38,7 @@ class LabelTypeEnum(str, Enum):
     point_observation = "point_observation"
     segmentation = "segmentation"
     instance_segmentation = "instance_segmentation"
+    semantic_segmentation = "semantic_segmentation"
 
 
 class Dataset(BaseModel):
@@ -84,6 +85,10 @@ class Dataset(BaseModel):
         if bbox is None:
             return None
         return f"BOX({bbox.left} {bbox.bottom}, {bbox.right} {bbox.top})"
+    
+    @property
+    def centroid(self):
+        return (self.bbox.left + self.bbox.right) / 2, (self.bbox.bottom + self.bbox.top) / 2
 
 
 class Cog(BaseModel):
