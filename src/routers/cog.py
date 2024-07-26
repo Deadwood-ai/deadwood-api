@@ -30,7 +30,8 @@ def update_status(token: str, dataset_id: int, status: StatusEnum):
 class ProcessOptions(BaseSettings):
     overviews: Optional[int] = 8
     resolution: Optional[float] = 0.04
-    profile: Optional[str] = "webp"
+    profile: Optional[str] = "jpeg"
+    quality: Optional[int] = 75
     force_recreate: Optional[bool] = False
 
 
@@ -73,7 +74,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
 
     # get the output settings
     cog_folder = Path(dataset.file_name).stem
-    file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}.tif"
+    file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
@@ -85,8 +86,15 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
     # start the timer
     t1 = time.time()
     try:
-        info = calculate_cog(str(input_path), str(output_path), options.profile, options.overviews, skip_recreate=not options.force_recreate)
-        print(info)
+        info = calculate_cog(
+            str(input_path), 
+            str(output_path), 
+            profile=options.profile, 
+            overviews=options.overviews, 
+            quality=options.quality,
+            skip_recreate=not options.force_recreate
+        )
+        logger.info(f"COG profile returned for dataset {dataset_id}: {info}", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
     except Exception as e:
         msg = f"Error processing COG for dataset {dataset_id}: {str(e)}"
 
