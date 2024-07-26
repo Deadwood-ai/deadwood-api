@@ -106,7 +106,7 @@ def migrate_file(old_metadata: dict) -> None:
     try:
         # set the file object
         files = {'file': (old_metadata['file_name'], origin_path.open('rb'))}
-        response = httpx.post(f"{conf['api_url']}/datasets", files=files, headers=header)
+        response = httpx.post(f"{conf['api_url']}/datasets", files=files, headers=header, timeout=60*2)
         dataset = Dataset(**response.json())
 
     except Exception as e:
@@ -130,7 +130,7 @@ def migrate_file(old_metadata: dict) -> None:
 
     # send the metadata
     try:
-        response = httpx.put(f"{conf['api_url']}/datasets/{dataset.id}/metadata", json=metadata.model_dump(), headers=header)
+        response = httpx.put(f"{conf['api_url']}/datasets/{dataset.id}/metadata", json=metadata.model_dump(), headers=header, timeout=10)
         print(response.json())
     except Exception as e:
         logger.exception(f"An error occurred while trying to upload the metadata: {str(e)}", extra={'token': conf['token']})
@@ -147,7 +147,7 @@ def migrate_file(old_metadata: dict) -> None:
 
     # send the label
     try:
-        response = httpx.post(f"{conf['api_url']}/datasets/{dataset.id}/labels", json=label.model_dump(), headers=header)
+        response = httpx.post(f"{conf['api_url']}/datasets/{dataset.id}/labels", json=label.model_dump(), headers=header, timeout=10)
         print(response.json())
     except Exception as e:
         logger.exception(f"An error occurred while trying to upload the label: {str(e)}", extra={'token': conf['token']})
