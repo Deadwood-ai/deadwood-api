@@ -16,6 +16,14 @@ def current_running_tasks(token: str) -> int:
     return num_of_tasks
 
 
+def queue_length(token: str) -> int:
+    with use_client(token) as client:
+        response = client.table(settings.queue_position_table).select("id").execute()
+        num_of_tasks = len(response.data)
+
+    return num_of_tasks
+
+
 def get_next_task(token: str) -> QueueTask:
     with use_client(token) as client:
         response = client.table(settings.queue_position_table).select("*").limit(1).execute()
@@ -57,13 +65,20 @@ def background_process():
     token = login(settings.processor_username, settings.processor_password).session.access_token
 
     # get the number of currently running tasks
-    num_of_tasks = current_running_tasks(token)
+    num_of_running = current_running_tasks(token)
+    queued_tasks = queue_length(token)
+
+    # is there is nothing in the queue, just stop the process and log
+    if queued_tasks == 0:
+        logger.info("No tasks in the queue.", extra={"token": token})
+        return
 
     # check if we can start another task
-    if num_of_tasks < settings.concurrent_tasks:
+    if num_of_running < settings.concurrent_tasks:
         # get the next task
         task = get_next_task(token)
         if task is not None:
+            logger.info(f"Start a new background process for queued task: {task}.", extra={"token": token, "user_id": task.user_id, "dataset_id": task.dataset_id})
             process_task(task, token=token)
         else:
             # we expected a task here, but there was None
