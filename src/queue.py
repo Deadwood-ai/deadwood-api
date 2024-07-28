@@ -84,6 +84,8 @@ def background_process():
             # we expected a task here, but there was None
             logger.error("Expected a task to process, but none was in the queue.", extra={"token": token})
     else:
+        # inform no spot available
+        logger.debug(f"No spot available for new task. Retry in {settings.task_retry_delay} seconds.", extra={"token": token})
         # restart this process after the configured delay
         Timer(interval=settings.task_retry_delay, function=background_process).start()
         
