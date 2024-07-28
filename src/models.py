@@ -53,7 +53,7 @@ class ProcessOptions(BaseSettings):
 class TaskPayload(BaseModel):
     id: Optional[int] = None
     dataset_id: int
-    user_id: int
+    user_id: str
     priority: int = 2
     build_args: ProcessOptions = ProcessOptions()
     is_processing: bool = False

@@ -76,7 +76,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
             response = (
                 client.table(settings.queue_position_table)
                 .select('*')
-                .filter('id', payload.id)
+                .eq('id', payload.id)
                 .execute()
             )
             task = QueueTask(**response.data[0])
