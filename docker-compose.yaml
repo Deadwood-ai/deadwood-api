@@ -11,6 +11,8 @@ services:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
+      PROCESSOR_USERNAME: processor@deadtrees.earth
+      PROCESSOR_PASSWORD: ${SUPABASE_PASSWORD}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
   
