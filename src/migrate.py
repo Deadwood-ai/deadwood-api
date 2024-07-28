@@ -12,7 +12,7 @@ import httpx
 from .supabase import login, use_client
 from .logger import logger
 from .models import MetadataPayloadData, LabelPayloadData, Dataset
-from .settings import settings
+
 
 @cache
 def get_old_env(**kwargs) -> dict:
@@ -28,8 +28,8 @@ def get_old_env(**kwargs) -> dict:
     archive_path = kwargs.get('archive_path', os.environ.get('OLD_ARCHIVE_PATH', '/apps/storage-server/dev-data/archive'))
 
     # new user
-    supabase_user = kwargs.get('supabase_user', os.environ.get('SUPABASE_USER'))
-    supabase_password = kwargs.get('supabase_password', os.environ.get('SUPABASE_PASSWORD'))
+    supabase_user = kwargs.get('processor_user', os.environ.get('PROCESSOR_USER'))
+    supabase_password = kwargs.get('processor_password', os.environ.get('PROCESSOR_PASSWORD'))
     token = kwargs.get('token')
 
     # set the API url
