@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, field_serializer, field_validator
 from pydantic_geojson import MultiPolygonModel, PolygonModel
 from pydantic_partial import PartialModelMixin
+from pydantic_settings import BaseSettings
 from rasterio.coords import BoundingBox
 
 
@@ -39,6 +40,29 @@ class LabelTypeEnum(str, Enum):
     segmentation = "segmentation"
     instance_segmentation = "instance_segmentation"
     semantic_segmentation = "semantic_segmentation"
+
+
+class ProcessOptions(BaseSettings):
+    overviews: Optional[int] = 8
+    resolution: Optional[float] = 0.04
+    profile: Optional[str] = "jpeg"
+    quality: Optional[int] = 75
+    force_recreate: Optional[bool] = False
+
+
+class TaskPayload(BaseModel):
+    id: Optional[int] = None
+    dataset_id: int
+    user_id: int
+    priority: int = 2
+    build_args: ProcessOptions = ProcessOptions()
+    is_processing: bool = False
+    created_at: Optional[datetime] = None
+
+
+class QueueTask(TaskPayload):
+    estimated_time: float
+    current_position: int
 
 
 class Dataset(BaseModel):
