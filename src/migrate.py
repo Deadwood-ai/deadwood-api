@@ -12,7 +12,7 @@ import httpx
 from .supabase import login, use_client
 from .logger import logger
 from .models import MetadataPayloadData, LabelPayloadData, Dataset
-from .settings import settings
+
 
 @cache
 def get_old_env(**kwargs) -> dict:
@@ -28,8 +28,8 @@ def get_old_env(**kwargs) -> dict:
     archive_path = kwargs.get('archive_path', os.environ.get('OLD_ARCHIVE_PATH', '/apps/storage-server/dev-data/archive'))
 
     # new user
-    supabase_user = kwargs.get('supabase_user', os.environ.get('SUPABASE_USER'))
-    supabase_password = kwargs.get('supabase_password', os.environ.get('SUPABASE_PASSWORD'))
+    supabase_user = kwargs.get('processor_user', os.environ.get('PROCESSOR_USERNAME'))
+    supabase_password = kwargs.get('processor_password', os.environ.get('PROCESSOR_PASSWORD'))
     token = kwargs.get('token')
 
     # set the API url
@@ -92,16 +92,13 @@ def migrate_file(old_metadata: dict) -> None:
         msg = f"Cannot migrage file {origin_path}. File does not exist."
         logger.error(msg, extra={'token': conf['token']})
         return
-    # else:
-    #     new_file_name = Path(conf['archive_path']) / old_metadata['file_name']
-    #     origin_path.rename(new_file_name)
-        # print(new_file_name)
     
     # start the timer
     t1 = time.time()
 
     # for all the requests build a header
     header = {'Authorization': f"Bearer {conf['token']}"}
+    
     # upload the new file
     try:
         # set the file object
@@ -131,32 +128,33 @@ def migrate_file(old_metadata: dict) -> None:
     # send the metadata
     try:
         response = httpx.put(f"{conf['api_url']}/datasets/{dataset.id}/metadata", json=metadata.model_dump(), headers=header, timeout=10)
-        print(response.json())
+        print(f"Saved metadata: {response.json()}")
     except Exception as e:
         logger.exception(f"An error occurred while trying to upload the metadata: {str(e)}", extra={'token': conf['token']})
         return
     
     # build the new label
-    label = LabelPayloadData(
-        aoi=old_metadata['aoi']['features'][0]['geometry'],
-        label=merge_multipolygon_geometries(old_metadata['standing_deadwood']),
-        label_source=old_metadata['label_source'],
-        label_quality=int(float(old_metadata['label_quality'])),
-        label_type=old_metadata['label_type']
-    )
+    if 'features' not in old_metadata['aoi'] or len(old_metadata['aoi']['features']) == 0:
+        logger.warning(f"No AOI found for dataset {dataset.id}. Skipping label creation.", extra={'token': conf['token']})
+    else:
+        label = LabelPayloadData(
+            aoi=old_metadata['aoi']['features'][0]['geometry'],
+            label=merge_multipolygon_geometries(old_metadata['standing_deadwood']),
+            label_source=old_metadata['label_source'],
+            label_quality=int(float(old_metadata['label_quality'])),
+            label_type=old_metadata['label_type']
+        )
 
-    # send the label
-    try:
-        response = httpx.post(f"{conf['api_url']}/datasets/{dataset.id}/labels", json=label.model_dump(), headers=header, timeout=10)
-        print(response.json())
-    except Exception as e:
-        logger.exception(f"An error occurred while trying to upload the label: {str(e)}", extra={'token': conf['token']})
-        return
+        # send the label
+        try:
+            response = httpx.post(f"{conf['api_url']}/datasets/{dataset.id}/labels", json=label.model_dump(), headers=header, timeout=10)
+        except Exception as e:
+            logger.exception(f"An error occurred while trying to upload the label: {str(e)}", extra={'token': conf['token']})
 
     # build the new cog
     try:
         response = httpx.put(f"{conf['api_url']}/datasets/{dataset.id}/build-cog", json=dict(), headers=header, timeout=None)
-        print(response.json())
+        print(f"COG build response: {response.json()}")
     except Exception as e:
         logger.exception(f"An error occurred while trying to build the COG: {str(e)}", extra={'token': conf['token']})
         return

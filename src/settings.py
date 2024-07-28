@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     cogs_table: str = 'v1_cogs'
     labels_table: str = 'v1_labels'
 
+    # queue settings
+    queue_table: str = 'v1_queue'
+    queue_position_table: str = 'v1_queue_positions'
+    concurrent_tasks: int = 2
+    task_retry_delay: int = 60
+
     @property
     def base_path(self) -> Path:
         path = Path(self.base_dir)
