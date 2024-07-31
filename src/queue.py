@@ -86,7 +86,7 @@ def process_task(task: QueueTask, token: str):
 
 def background_process():
     """
-    This process checks if there is anything to in the queue. 
+    This process checks if there is anything to do in the queue. 
     If so, it checks the currently running tasks against the maximum allowed tasks.
     If another task can be started, it will do so, if not, the background_process is 
     added to the FastAPI background tasks with a configured delay.
