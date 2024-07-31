@@ -20,8 +20,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.put("/datasets/{dataset_id}/build-cog")
 def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annotated[str, Depends(oauth2_scheme)], background_tasks: BackgroundTasks):
-    """
-    
+    """FastAPI process chain to add a cog-calculation task to the processing queue, with monitoring and logging.
+    Verifies the access token, loads the dataset to calculate, creates a TaskPayload and returns the task to start 
+    calculating in the background.
+
+    Args:
+        dataset_id (int): The id of the processed cog
+        options (Optional[ProcessOptions]): Optional processsing options to change the standard settings for the cog creation
+        token (Annotated[str, Depends): Supabase access token
+        background_tasks (BackgroundTasks): FastAPI background tasks object
+
+    Returns:
+        QueueTask: Returns the task
     """
     # count an invoke
     monitoring.cog_invoked.inc()
