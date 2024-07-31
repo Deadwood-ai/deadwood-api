@@ -10,6 +10,13 @@ from .deadwood.cog import calculate_cog
 
 
 def update_status(token: str, dataset_id: int, status: StatusEnum):
+    """Function to update the status of a current QueueTask cog calculation process.
+
+    Args:
+        token (str): Supabase client session token
+        dataset_id (int): Unique id of the geotiff/cog dataset
+        status (StatusEnum): The current status of the cog calculation process to set the dataset to
+    """
     with use_client(token) as client:
         client.table(settings.datasets_table).update({
             'status': status.value,
@@ -17,6 +24,15 @@ def update_status(token: str, dataset_id: int, status: StatusEnum):
 
 
 def process_cog(task: QueueTask):
+    """Function to calculate a cloud optimized geotiff (cog) for the current QueueTask.
+    Connects to the supabase metadata database, keeps the status up to date during the 
+    process, executes the calculate_cog function to calculate the cog and logs
+    any potential errors during the process. In the end it will upload the cog and 
+    update prometheus to monitor the cog proccessing.
+
+    Args:
+        task (QueueTask): A QueueTask task containing all the required info for the cog processing
+    """
     # login with the processor
     token = login(settings.processor_username, settings.processor_password).session.access_token
 

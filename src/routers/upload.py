@@ -22,6 +22,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # little helper
 def format_size(size: int) -> str:
+    """Converting the filesize of the geotiff into a human readable format for the logger
+
+    Args:
+        size (int): File size in bytes
+
+    Returns:
+        str: A proper human readable size string in bytes, KB, MB or GB
+    """
     if size < 1024:
         return f"{size} bytes"
     elif size < 1024**2:

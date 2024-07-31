@@ -9,6 +9,14 @@ from .logger import logger
 
 
 def current_running_tasks(token: str) -> int:
+    """Get the number of currently actively processing tasks from supabase.
+
+    Args:
+        token (str): Client access token for supabase
+
+    Returns:
+        int: number of currently active tasks
+    """
     with use_client(token) as client:
         response = client.table(settings.queue_table).select("id").eq("is_processing", True).execute()
         num_of_tasks = len(response.data)
@@ -17,6 +25,14 @@ def current_running_tasks(token: str) -> int:
 
 
 def queue_length(token: str) -> int:
+    """Get the number of tasks in the queue from supabase.
+
+    Args:
+        token (str): Client access token for supabase
+
+    Returns:
+        int: number of all tasks in the queue
+    """
     with use_client(token) as client:
         response = client.table(settings.queue_position_table).select("id").execute()
         num_of_tasks = len(response.data)
@@ -25,6 +41,14 @@ def queue_length(token: str) -> int:
 
 
 def get_next_task(token: str) -> QueueTask:
+    """Get the next task (QueueTask class) in the queue from supabase.
+
+    Args:
+        token (str): Client access token for supabase
+
+    Returns:
+        QueueTask: The next task in the queue as a QueueTask class instance
+    """
     with use_client(token) as client:
         response = client.table(settings.queue_position_table).select("*").limit(1).execute()
     
@@ -34,6 +58,13 @@ def get_next_task(token: str) -> QueueTask:
 
 
 def process_task(task: QueueTask, token: str):
+    """Calculates the COG for a QueueTask and removes the task from the queue when finished succesfully.
+    Logs any error in the logger in case of an unexpected exception.
+
+    Args:
+        task (QueueTask):  Task from the processing queue as a QueueTask class instance
+        token (str): Client access token for supabase
+    """
 
     # mark this task as processing
     with use_client(token) as client:
