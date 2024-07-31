@@ -12,7 +12,7 @@ from rasterio.coords import BoundingBox
 class PlatformEnum(str, Enum):
     drone = "drone"
     airborne = "airborne"
-    sattelite = "sattelite"
+    satellite = "satellite"
 
 
 class LicenseEnum(str, Enum):
