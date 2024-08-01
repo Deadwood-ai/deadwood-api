@@ -159,12 +159,15 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
-    
+
     # Gadm labels
     gadm_name_1: Optional[str] = None
     gadm_name_2: Optional[str] = None
     gadm_name_3: Optional[str] = None
-
+    # OSM admin levels
+    admin_level_1: Optional[str] = None
+    admin_level_2: Optional[str] = None
+    admin_level_3: Optional[str] = None
     aquisition_date: Optional[datetime] = None
     
     @field_serializer('aquisition_date', mode='plain')
