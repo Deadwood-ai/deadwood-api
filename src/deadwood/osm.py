@@ -1,9 +1,10 @@
 from typing import Tuple
 import overpy
 
+
 QUERY_TEMPLATE = """
 [out:json];is_in({lat},{lon});rel(pivot)->.w;
-.w out geom;
+.w out tags;
 """
 
 
@@ -27,8 +28,12 @@ def get_admin_level_from_point(point: Tuple[float, float]):
             continue
         
         # get the stuff
-        name = relation.tags.get('name')
         admin_level = relation.tags.get('admin_level')
+        if admin_level == '2':
+            name = relation.tags.get('name:en', relation.tags.get('name'))
+        else:
+            name = relation.tags.get('name')
+        
 
         # continue is info is missing
         if name is None or admin_level is None:
