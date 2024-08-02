@@ -194,7 +194,9 @@ class Metadata(MetadataPayloadData):
     name: str
     license: LicenseEnum
     platform: PlatformEnum
-    aquisition_date: datetime
+    year: int
+    month: int
+    day: int
 
 
 class LabelPayloadData(PartialModelMixin, BaseModel):
