@@ -10,11 +10,11 @@ from .deadwood.cog import calculate_cog
 
 
 def update_status(token: str, dataset_id: int, status: StatusEnum):
-    """Function to update the status of a current QueueTask cog calculation process.
+    """Function to update the status field of a dataset about the cog calculation process.
 
     Args:
         token (str): Supabase client session token
-        dataset_id (int): Unique id of the geotiff/cog dataset
+        dataset_id (int): Unique id of the dataset
         status (StatusEnum): The current status of the cog calculation process to set the dataset to
     """
     with use_client(token) as client:
