@@ -170,9 +170,10 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
     with use_client(token) as client:
         response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
 
-        if len(response.data) == 1:
+        if len(response.data) > 0:
             metadata = Metadata(**response.data[0]).model_dump()
         else:
+            logger.info(f"No existing Metadata found for Dataset {dataset_id}. Creating a new one.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
             metadata = {'dataset_id': dataset_id, 'user_id': user.id}
 
     # update the given metadata if any with the payload
@@ -184,7 +185,6 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
 
         logger.exception(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
         return HTTPException(status_code=400, detail=msg)
-
 
     try:
         # upsert the given metadata entry with the merged data
