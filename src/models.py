@@ -165,16 +165,9 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     gadm_name_2: Optional[str] = None
     gadm_name_3: Optional[str] = None
 
-    aquisition_date: Optional[datetime] = None
     aquisition_year: Optional[int] = None
     aquisition_month: Optional[int] = None
     aquisition_day: Optional[int] = None
-    
-    @field_serializer('aquisition_date', mode='plain')
-    def datetime_to_isoformat(field: datetime | None) -> str | None:
-        if field is None:
-            return None
-        return field.isoformat()
 
 
 class Metadata(MetadataPayloadData):
@@ -194,9 +187,8 @@ class Metadata(MetadataPayloadData):
     name: str
     license: LicenseEnum
     platform: PlatformEnum
-    year: int
-    month: int
-    day: int
+    # only the aquisition_year is necessary
+    aquisition_year: int
 
 
 class LabelPayloadData(PartialModelMixin, BaseModel):
