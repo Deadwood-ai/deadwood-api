@@ -12,7 +12,7 @@ from rasterio.coords import BoundingBox
 class PlatformEnum(str, Enum):
     drone = "drone"
     airborne = "airborne"
-    sattelite = "sattelite"
+    satellite = "satellite"
 
 
 class LicenseEnum(str, Enum):
@@ -71,7 +71,7 @@ class Dataset(BaseModel):
     It contains the minimum required metadata to upload a GeoTiff and start processing.
     It also contains the metadata, that cannot be changed after the upload by the user anymore.
     
-    Additionally, it will be linked to the Metacata record, which is updatable for the user,
+    Additionally, it will be linked to the Metadata record, which is updatable for the user,
     and links the Labels with a 1:m cardinality.
     """
     id: Optional[int] = None

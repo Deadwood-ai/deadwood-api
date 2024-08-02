@@ -4,11 +4,37 @@ import subprocess
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
+def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
+    """Function to initiate the cog calculation process.
+
+    Args:
+        tiff_file_path (str): Path to the geotiff file to be processed
+        cog_target_path (str): Path for the finished cog file to save to
+        profile (str, optional): Optional base compression profile for the cog calculation. Defaults to "webp".
+        overviews (int, optional): Optional overview number. Defaults to None.
+        quality (int, optional): Optional overall quality setting (between 0 and 100). Defaults to 75.
+        skip_recreate (bool, optional): Option to skip recreate. Defaults to False.
+
+    Returns:
+        Function: Returns the cog calculation function the initialized settings
+    """
     # we use the gdal
     return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
 
-def _gdal_calculate_cog(tiff_file_path, cog_target_path, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
+def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
+    """Function to calculate a Cloud Optimized Geotiff (cog) from a geotiff using gdal.
+
+    Args:
+        tiff_file_path (str): Path to the geotiff file to be processed
+        cog_target_path (str): Path for the finished cog file to save to
+        compress (str, optional): Optional base compression profile for the cog calculation. Defaults to "jpeg".
+        overviews (_type_, optional): Optional overview number. Defaults to None.
+        quality (int, optional): Optional overall quality setting (between 0 and 100). Defaults to 75.
+        skip_recreate (bool, optional): Option to skip recreate. Defaults to False.
+    
+    Returns:
+        Info: Returns general infos and validation for the calculated Cloud Optimized Geotiff (using the rio_cogeo package)
+    """
         # check if the COG already exists
     if skip_recreate and Path(cog_target_path).exists():
         return cog_info(cog_target_path)
