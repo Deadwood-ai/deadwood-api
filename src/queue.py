@@ -89,3 +89,5 @@ def background_process():
         # restart this process after the configured delay
         Timer(interval=settings.task_retry_delay, function=background_process).start()
         
+if __name__ == '__main__':
+    background_process()
