@@ -166,6 +166,9 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     gadm_name_3: Optional[str] = None
 
     aquisition_date: Optional[datetime] = None
+    year: Optional[int] = None
+    month: Optional[int] = None
+    day: Optional[int] = None
     
     @field_serializer('aquisition_date', mode='plain')
     def datetime_to_isoformat(field: datetime | None) -> str | None:
