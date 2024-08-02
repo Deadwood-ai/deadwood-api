@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_serializer, field_validator
 from pydantic_geojson import MultiPolygonModel, PolygonModel
+from pydantic_partial import PartialModelMixin
+from pydantic_settings import BaseSettings
 from rasterio.coords import BoundingBox
 
 
@@ -27,14 +29,8 @@ class StatusEnum(str, Enum):
     audit_failed = "audit_failed"
 
 
-class LabelQualityEnum(Enum):
-    high = 3
-    medium = 2
-    low = 1
-
-
 class LabelSourceEnum(str, Enum):
-    visual = "visual"
+    visual_interpretation = "visual_interpretation"
     model_prediction = "model_prediction"
     fixed_model_prediction = "fixed_model_prediction"
 
@@ -43,6 +39,30 @@ class LabelTypeEnum(str, Enum):
     point_observation = "point_observation"
     segmentation = "segmentation"
     instance_segmentation = "instance_segmentation"
+    semantic_segmentation = "semantic_segmentation"
+
+
+class ProcessOptions(BaseSettings):
+    overviews: Optional[int] = 8
+    resolution: Optional[float] = 0.04
+    profile: Optional[str] = "jpeg"
+    quality: Optional[int] = 75
+    force_recreate: Optional[bool] = False
+
+
+class TaskPayload(BaseModel):
+    id: Optional[int] = None
+    dataset_id: int
+    user_id: str
+    priority: int = 2
+    build_args: ProcessOptions = ProcessOptions()
+    is_processing: bool = False
+    created_at: Optional[datetime] = None
+
+
+class QueueTask(TaskPayload):
+    estimated_time: float
+    current_position: int
 
 
 class Dataset(BaseModel):
@@ -89,6 +109,10 @@ class Dataset(BaseModel):
         if bbox is None:
             return None
         return f"BOX({bbox.left} {bbox.bottom}, {bbox.right} {bbox.top})"
+    
+    @property
+    def centroid(self):
+        return (self.bbox.left + self.bbox.right) / 2, (self.bbox.bottom + self.bbox.top) / 2
 
 
 class Cog(BaseModel):
@@ -126,22 +150,11 @@ class Cog(BaseModel):
         return field.isoformat()
 
 
-class Metadata(BaseModel):
-    """
-    Class for additional Metadata in the database. It has to be connected to a Dataset object
-    using a 1:1 cardinality.
-    This is separated, so that different RLS policies can apply. Additionally, this is the 
-    metadata that can potentially be 
-    """
-    # primary key
-    dataset_id: str
-    
-    user_id: str
-
+class MetadataPayloadData(PartialModelMixin, BaseModel):
     # now the metadata
-    name: str
-    license: LicenseEnum
-    platform: PlatformEnum
+    name: Optional[str] = None
+    license: Optional[LicenseEnum] = None
+    platform: Optional[PlatformEnum] = None
     project_id: Optional[int] = None
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
@@ -152,14 +165,36 @@ class Metadata(BaseModel):
     gadm_name_2: Optional[str] = None
     gadm_name_3: Optional[str] = None
 
-    aquisition_date: datetime
+    aquisition_date: Optional[datetime] = None
     
     @field_serializer('aquisition_date', mode='plain')
-    def datetime_to_isoformat(field: datetime) -> str:
+    def datetime_to_isoformat(field: datetime | None) -> str | None:
+        if field is None:
+            return None
         return field.isoformat()
 
 
-class LabelPayloadData(BaseModel):
+class Metadata(MetadataPayloadData):
+    """
+    Class for additional Metadata in the database. It has to be connected to a Dataset object
+    using a 1:1 cardinality.
+    This is separated, so that different RLS policies can apply. Additionally, this is the 
+    metadata that can potentially be 
+    """
+    # primary key
+    dataset_id: int
+    
+    # link to a user
+    user_id: str
+
+    # make some field non-optional
+    name: str
+    license: LicenseEnum
+    platform: PlatformEnum
+    aquisition_date: datetime
+
+
+class LabelPayloadData(PartialModelMixin, BaseModel):
     """
     The LabelPayloadData class is the base class for the payload of the label.
     This is the user provided data, before the Labels are validated and saved to
@@ -169,8 +204,10 @@ class LabelPayloadData(BaseModel):
     aoi: PolygonModel
     label: MultiPolygonModel
     label_source: LabelSourceEnum
-    label_quality: LabelQualityEnum
-    type: LabelTypeEnum
+    label_quality: int
+    label_type: LabelTypeEnum
+
+PartialLabelPayloadData = LabelPayloadData.model_as_partial()
 
 
 class Label(LabelPayloadData):
@@ -182,7 +219,7 @@ class Label(LabelPayloadData):
     id: Optional[int] = None
     
     # the label
-    dataset_id: str
+    dataset_id: int
     user_id: str
 
     created_at: Optional[datetime] = None

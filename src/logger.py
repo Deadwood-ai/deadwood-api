@@ -1,6 +1,7 @@
 import logging
 
 from .supabase import use_client
+from .__version__ import __version__
 
 # create a custom supabase handler
 class SupabaseHandler(logging.Handler):
@@ -12,31 +13,21 @@ class SupabaseHandler(logging.Handler):
             message=self.format(record),
             origin=record.filename,
             origin_line=record.lineno,
+            backend_version=__version__
         )
 
         # check if we have a metadata object
-        if hasattr(self, 'dataset_id'):
-            log.update(
-                file_id=self.dataset_id,
-            )
-        
-        # set that there is no token
-        if not hasattr(self, 'token'):
-            self.token = None
+        log.update(
+            dataset_id=record.__dict__.get('dataset_id')
+        )
         
         # add the user id
-        if hasattr(self, 'user_id'):
-            log.update(
-                user_id=self.user_id
-            )
+        log.update(
+            user_id=record.__dict__.get('user_id')
+        )
 
         # connect to the database and log
-        with use_client(self.token) as client:
-            # set an empty user id if there is none
-            if not hasattr(client, 'user_id'):
-                self.user_id = getattr(client, 'user_id', None)
-
-            log.update(user_id=self.user_id)
+        with use_client(record.__dict__.get('token')) as client:
             try:
                 client.table("logs").insert(log).execute()
             except Exception as e:

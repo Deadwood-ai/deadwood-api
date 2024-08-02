@@ -1,9 +1,40 @@
 from pathlib import Path
+import subprocess
 
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, skip_recreate: bool = False):
+def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
+    # we use the gdal
+    return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+
+def _gdal_calculate_cog(tiff_file_path, cog_target_path, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
+        # check if the COG already exists
+    if skip_recreate and Path(cog_target_path).exists():
+        return cog_info(cog_target_path)
+    
+    # build the gdal command
+    cmd_translate = [
+        "gdal_translate",
+        tiff_file_path,
+        cog_target_path,
+        "-of", "COG",
+        "-co", f"COMPRESS={compress.upper()}",
+        "-co", "BLOCKSIZE=512",
+        "-co", f"QUALITY={quality}",
+        "-co", "OVERVIEW_COMPRESS=JPEG",
+        "-co", "OVERVIEWS=IGNORE_EXISTING",
+    ]
+    if overviews is not None:
+        cmd_translate.extend(["-co", f"OVERVIEW_COUNT={overviews}"])
+
+    # apply
+    subprocess.run(cmd_translate)
+
+    return cog_info(cog_target_path)
+
+
+def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
     """
     Converts a TIFF file to a Cloud Optimized GeoTIFF (COG) format using the specified profile and configuration.
 
@@ -52,6 +83,7 @@ def calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=Non
         tiff_file_path,
         cog_target_path,
         output_profile,
+        dst_kwargs=dict(quality=quality),
         config=config,
         overview_level=overviews, 
         use_cog_driver=True,

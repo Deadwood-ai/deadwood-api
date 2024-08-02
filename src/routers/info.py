@@ -1,4 +1,5 @@
 import platform
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
@@ -10,7 +11,7 @@ class InfoResponse(BaseModel):
     endpoints: list[dict]
 
 
-
+# build the router for main content
 router = APIRouter()
 
 @router.get("/", response_model=InfoResponse)
