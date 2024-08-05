@@ -17,7 +17,7 @@ services:
       LABELS_TABLE: v1_labels
       THUMBNAIL_BUCKET: v1_thumbnails
       PROCESSOR_USERNAME: processor@deadtrees.earth
-      PROCESSOR_PASSWORD: ${SUPABASE_PASSWORD}
+      PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
   
@@ -36,7 +36,7 @@ services:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
       PROCESSOR_USERNAME: processor@deadtrees.earth
-      PROCESSOR_PASSWORD: ${SUPABASE_PASSWORD}
+      PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       OLD_ARCHIVE_PATH: /data/to_migrate
       API_URL: http://api:8762
 
