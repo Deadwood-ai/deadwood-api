@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
+
 
 import prometheus_client
 
@@ -15,10 +16,11 @@ app = FastAPI(
 # add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=['https://deadtrees.earth', 'https://www.deadtrees.earth'],
+    allow_origin_regex='http://localhost:.*',
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['OPTIONS, GET, POST, PUT'],
+    allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
 )
 
 # add the info route to the app

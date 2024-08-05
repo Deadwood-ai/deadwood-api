@@ -1,7 +1,11 @@
+from typing import Annotated
 import platform
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, UploadFile, Depends
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
+
+from ..supabase import verify_token
 
 
 class InfoResponse(BaseModel):
@@ -13,6 +17,8 @@ class InfoResponse(BaseModel):
 
 # build the router for main content
 router = APIRouter()
+
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth", auto_error=False)
 
 @router.get("/", response_model=InfoResponse)
 def info(request: Request):
@@ -45,3 +51,25 @@ def info(request: Request):
     )
 
     return info
+
+
+@router.post("/test-upload")
+def upload_check(file: UploadFile, token: Annotated[str, Depends(optional_oauth2_scheme)] = None):
+#def upload_check(file: UploadFile):
+    """
+    Check if the file is a GeoTIFF file.
+
+    Args:
+        file (UploadFile): The file to check
+
+    Returns:
+        bool: True if the file is a GeoTIFF file, False otherwise
+    """
+    has_token = token is not None and token != ""
+
+    return {
+        'has_token': has_token,
+        'is_authenticated':  verify_token(token) if has_token else False,
+        'file': file.filename,
+        'size': file.size,
+    }
