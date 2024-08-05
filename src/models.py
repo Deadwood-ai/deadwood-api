@@ -159,6 +159,7 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
+    additional_information: Optional[str] = None
     
     # Gadm labels
     gadm_name_1: Optional[str] = None
