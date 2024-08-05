@@ -54,7 +54,8 @@ def info(request: Request):
 
 
 @router.post("/test-upload")
-def upload_check(file: UploadFile, token: str | None = Annotated[str, Depends(optional_oauth2_scheme)]) -> bool:
+def upload_check(file: UploadFile, token: Annotated[str, Depends(optional_oauth2_scheme)] = None):
+#def upload_check(file: UploadFile):
     """
     Check if the file is a GeoTIFF file.
 
@@ -64,9 +65,11 @@ def upload_check(file: UploadFile, token: str | None = Annotated[str, Depends(op
     Returns:
         bool: True if the file is a GeoTIFF file, False otherwise
     """
+    has_token = token is not None and token != ""
+
     return {
-        'has_token': token is not None,
-        'is_authenticated': verify_token(token) if token is not None else False,
+        'has_token': has_token,
+        'is_authenticated':  verify_token(token) if has_token else False,
         'file': file.filename,
         'size': file.size,
     }
