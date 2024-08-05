@@ -43,7 +43,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     except Exception as e:
         # log the error to the database
         msg = f"Error loading dataset {dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
 
         return HTTPException(status_code=500, detail=msg)
 
@@ -61,9 +61,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     except Exception as e:
         # log the error to the database
         msg = f"Error creating thumbnail for dataset {dataset_id}: {str(e)}"
-        logger.error(
-            msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id}
-        )
+        logger.error(msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
 
         return HTTPException(status_code=500, detail=msg)
 
@@ -73,9 +71,9 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     except Exception as e:
         # log the error to the database
         msg = f"Error converting thumbnail to base64 for dataset {dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
 
-        return HTTPException(status_code=500, detail=msg)
+        return HTTPException(status_code=400, detail=msg)
 
     try:
         with use_client(token) as client:
@@ -83,20 +81,13 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
             # adding thumbnail as base64 encoded image source to supabase table v1_thumbnails
             response_thumbnails = (
                 client.table(settings.thumbnail_table)
-                .insert(
-                    {
-                        "dataset_id": dataset_id,
-                        #thumbnail": thumbnail_target_path.read_bytes(),
-                        "base64img": imgSrc,
-                    }
-                )
-                .execute()
+                .insert({"dataset_id": dataset_id, "base64img": imgSrc, "user_id": user.id}).execute()
             )
 
     except Exception as e:
         # log the error to the database
-        msg = f"---Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name} thumbnail_bucket: {settings.thumbnail_table}"
-        logger.error(msg, extra={"token": token})
+        msg = f"Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name}"
+        logger.error(msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
 
         return HTTPException(status_code=500, detail=msg)
 
