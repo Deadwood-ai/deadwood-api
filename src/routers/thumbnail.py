@@ -1,10 +1,10 @@
-from typing import Optional, Annotated
+from typing import Annotated
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from ..supabase import verify_token, use_client
+from ..supabase import verify_token, use_client, login
 from ..settings import settings
 from ..deadwood.thumbnail import calculate_thumbnail
 from ..models import Dataset, Cog, StatusEnum
@@ -51,6 +51,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     thumbnail_file_name = dataset.file_name.replace(".tif", ".jpg")
     thumbnail_target_path = Path(settings.tmp_path) / thumbnail_file_name
 
+    # check if file is already in the bucket
     if thumbnail_target_path.exists():
         thumbnail_target_path.unlink()
 
@@ -59,25 +60,42 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     except Exception as e:
         # log the error to the database
         msg = f"Error creating thumbnail for dataset {dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token})
+        logger.error(
+            msg, extra={"token": token, "dataset_id": dataset.id, "user_id": user.id}
+        )
 
         return HTTPException(status_code=500, detail=msg)
 
-    # check if file is already in the bucket
+    # processor_token = login(
+    #     settings.processor_username, settings.processor_password
+    # ).session.access_token
+
     try:
         with use_client(token) as client:
-            response_thumbnails = client.storage.from_(
-                settings.thumbnail_bucket
-            ).upload(
-                file=thumbnail_target_path,
-                path=thumbnail_file_name,
-                file_options={"content-type": "image/jpeg"},
-                # content_type="image/jpeg",
-                # insert=True,
+            print(client.auth.get_session())
+            # adding thumbnail as binary to supabase table v1_thumbnails
+            response_thumbnails = (
+                client.table(settings.thumbnail_table)
+                .insert(
+                    {
+                        "dataset_id": dataset_id,
+                        "thumbnail": thumbnail_target_path.read_bytes(),
+                    }
+                )
+                .execute()
             )
+            # response_thumbnails = client.storage.from_(
+            #     settings.thumbnail_bucket
+            # ).upload(
+            #     file=thumbnail_target_path,
+            #     path=thumbnail_file_name,
+            #     file_options={"content-type": "image/jpeg"},
+            #     # content_type="image/jpeg",
+            #     # insert=True,
+            # )
     except Exception as e:
         # log the error to the database
-        msg = f"Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name} thumbnail_bucket: {settings.thumbnail_bucket}"
+        msg = f"---Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name} thumbnail_bucket: {settings.thumbnail_table}"
         logger.error(msg, extra={"token": token})
 
         return HTTPException(status_code=500, detail=msg)

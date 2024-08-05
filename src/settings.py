@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     metadata_table: str = "v1_metadata"
     cogs_table: str = "v1_cogs"
     labels_table: str = "v1_labels"
+    thumbnail_table: str = "v1_thumbnails"
 
     # queue settings
-    queue_table: str = 'v1_queue'
-    queue_position_table: str = 'v1_queue_positions'
+    queue_table: str = "v1_queue"
+    queue_position_table: str = "v1_queue_positions"
     concurrent_tasks: int = 2
     task_retry_delay: int = 60
 
