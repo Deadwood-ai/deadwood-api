@@ -23,6 +23,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # little helper
 def format_size(size: int) -> str:
+    """Converting the filesize of the geotiff into a human readable format for the logger
+
+    Args:
+        size (int): File size in bytes
+
+    Returns:
+        str: A proper human readable size string in bytes, KB, MB or GB
+    """
     if size < 1024:
         return f"{size} bytes"
     elif size < 1024**2:
@@ -163,9 +171,10 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
     with use_client(token) as client:
         response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
 
-        if len(response.data) == 1:
+        if len(response.data) > 0:
             metadata = Metadata(**response.data[0]).model_dump()
         else:
+            logger.info(f"No existing Metadata found for Dataset {dataset_id}. Creating a new one.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
             metadata = {'dataset_id': dataset_id, 'user_id': user.id}
 
     # update the given metadata if any with the payload
@@ -198,7 +207,6 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
             msg = f"An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}"
             logger.error(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
         
-
     try:
         # upsert the given metadata entry with the merged data
         with use_client(token) as client:

@@ -12,7 +12,7 @@ from rasterio.coords import BoundingBox
 class PlatformEnum(str, Enum):
     drone = "drone"
     airborne = "airborne"
-    sattelite = "sattelite"
+    satellite = "satellite"
 
 
 class LicenseEnum(str, Enum):
@@ -71,7 +71,7 @@ class Dataset(BaseModel):
     It contains the minimum required metadata to upload a GeoTiff and start processing.
     It also contains the metadata, that cannot be changed after the upload by the user anymore.
     
-    Additionally, it will be linked to the Metacata record, which is updatable for the user,
+    Additionally, it will be linked to the Metadata record, which is updatable for the user,
     and links the Labels with a 1:m cardinality.
     """
     id: Optional[int] = None
@@ -159,22 +159,16 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
+    additional_information: Optional[str] = None
 
-    # Gadm labels
-    gadm_name_1: Optional[str] = None
-    gadm_name_2: Optional[str] = None
-    gadm_name_3: Optional[str] = None
     # OSM admin levels
     admin_level_1: Optional[str] = None
     admin_level_2: Optional[str] = None
     admin_level_3: Optional[str] = None
-    aquisition_date: Optional[datetime] = None
-    
-    @field_serializer('aquisition_date', mode='plain')
-    def datetime_to_isoformat(field: datetime | None) -> str | None:
-        if field is None:
-            return None
-        return field.isoformat()
+
+    aquisition_year: Optional[int] = None
+    aquisition_month: Optional[int] = None
+    aquisition_day: Optional[int] = None
 
 
 class Metadata(MetadataPayloadData):
@@ -194,7 +188,8 @@ class Metadata(MetadataPayloadData):
     name: str
     license: LicenseEnum
     platform: PlatformEnum
-    aquisition_date: datetime
+    # only the aquisition_year is necessary
+    aquisition_year: int
 
 
 class LabelPayloadData(PartialModelMixin, BaseModel):

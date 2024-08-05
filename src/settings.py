@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     # directly specify the locations for several files
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
-
+    thumbnail_bucket: str = "v1_thumbnails"
+    tmp_dir: str = "tmp"
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -31,18 +32,19 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # supabase settings
-    processor_username: str = 'processor@deadtrees.earth'
-    processor_password: str = 'processor'
+    processor_username: str = "processor@deadtrees.earth"
+    processor_password: str = "processor"
 
     # tabe names
-    datasets_table: str = 'v1_datasets'
-    metadata_table: str = 'v1_metadata'
-    cogs_table: str = 'v1_cogs'
-    labels_table: str = 'v1_labels'
+    datasets_table: str = "v1_datasets"
+    metadata_table: str = "v1_metadata"
+    cogs_table: str = "v1_cogs"
+    labels_table: str = "v1_labels"
+    thumbnail_table: str = "v1_thumbnails"
 
     # queue settings
-    queue_table: str = 'v1_queue'
-    queue_position_table: str = 'v1_queue_positions'
+    queue_table: str = "v1_queue"
+    queue_position_table: str = "v1_queue_positions"
     concurrent_tasks: int = 2
     task_retry_delay: int = 60
 
@@ -51,7 +53,7 @@ class Settings(BaseSettings):
         path = Path(self.base_dir)
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
 
     @property
@@ -59,15 +61,24 @@ class Settings(BaseSettings):
         path = self.base_path / self.archive_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
-    
+
     @property
     def cog_path(self) -> Path:
         path = self.base_path / self.cog_dir
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
-        
+
         return path
+
+    @property
+    def tmp_path(self) -> Path:
+        path = self.base_path / self.tmp_dir
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+
+        return path
+
 
 settings = Settings()
