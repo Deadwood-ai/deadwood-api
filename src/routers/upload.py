@@ -188,7 +188,7 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         return HTTPException(status_code=400, detail=msg)
 
     # if the metadata does not have admin level names, query them from OSM
-    if metadata.admin_level_1_name is None:
+    if metadata.admin_level_1 is None:
         # get the bounding box
         try:
             with use_client(token) as client:
@@ -199,9 +199,9 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
                 (lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
 
                 # update the metadata model
-                metadata.admin_level_1_name = lvl1
-                metadata.admin_level_2_name = lvl2
-                metadata.admin_level_3_name = lvl3
+                metadata.admin_level_1 = lvl1
+                metadata.admin_level_2 = lvl2
+                metadata.admin_level_3 = lvl3
 
         except Exception as e:
             msg = f"An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}"
