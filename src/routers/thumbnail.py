@@ -1,13 +1,14 @@
 from typing import Annotated
 from pathlib import Path
+import base64
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from ..supabase import verify_token, use_client, login
+from ..supabase import verify_token, use_client
 from ..settings import settings
 from ..deadwood.thumbnail import calculate_thumbnail
-from ..models import Dataset, Cog, StatusEnum
+from ..models import Dataset
 from ..logger import logger
 
 
@@ -66,33 +67,32 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 
         return HTTPException(status_code=500, detail=msg)
 
-    # processor_token = login(
-    #     settings.processor_username, settings.processor_password
-    # ).session.access_token
+    # convert to base64
+    try:
+        imgSrc = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_target_path.read_bytes()).hex()}"
+    except Exception as e:
+        # log the error to the database
+        msg = f"Error converting thumbnail to base64 for dataset {dataset_id}: {str(e)}"
+        logger.error(msg, extra={"token": token})
+
+        return HTTPException(status_code=500, detail=msg)
 
     try:
         with use_client(token) as client:
             print(client.auth.get_session())
-            # adding thumbnail as binary to supabase table v1_thumbnails
+            # adding thumbnail as base64 encoded image source to supabase table v1_thumbnails
             response_thumbnails = (
                 client.table(settings.thumbnail_table)
                 .insert(
                     {
                         "dataset_id": dataset_id,
-                        "thumbnail": thumbnail_target_path.read_bytes(),
+                        #thumbnail": thumbnail_target_path.read_bytes(),
+                        "base64img": imgSrc,
                     }
                 )
                 .execute()
             )
-            # response_thumbnails = client.storage.from_(
-            #     settings.thumbnail_bucket
-            # ).upload(
-            #     file=thumbnail_target_path,
-            #     path=thumbnail_file_name,
-            #     file_options={"content-type": "image/jpeg"},
-            #     # content_type="image/jpeg",
-            #     # insert=True,
-            # )
+
     except Exception as e:
         # log the error to the database
         msg = f"---Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name} thumbnail_bucket: {settings.thumbnail_table}"
@@ -101,6 +101,6 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
         return HTTPException(status_code=500, detail=msg)
 
     return {
-        "message": "Thumbnail uploaded successfully",
-        "message": response_thumbnails,
+        "dataset_id": dataset_id,
+        "message": response_thumbnails
     }
