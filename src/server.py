@@ -15,10 +15,10 @@ app = FastAPI(
 # add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=['https://deadtrees.earth', 'https://www.deadtrees.earth', 'http://localhost:.*'],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['OPTIONS, GET, POST, PUT'],
+    allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
 )
 
 # add the info route to the app
