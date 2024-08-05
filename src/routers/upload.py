@@ -12,6 +12,7 @@ from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
+from ..deadwood.osm import get_admin_tags
 from  .. import monitoring
 
 # create the router for the upload
@@ -186,13 +187,33 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         logger.exception(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
         return HTTPException(status_code=400, detail=msg)
 
+    # if the metadata does not have admin level names, query them from OSM
+    if metadata.admin_level_1_name is None:
+        # get the bounding box
+        try:
+            with use_client(token) as client:
+                response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
+                data = Dataset(**response.data[0])
+
+                # get the tags of the centroid
+                (lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
+
+                # update the metadata model
+                metadata.admin_level_1_name = lvl1
+                metadata.admin_level_2_name = lvl2
+                metadata.admin_level_3_name = lvl3
+
+        except Exception as e:
+            msg = f"An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}"
+            logger.error(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
+        
     try:
         # upsert the given metadata entry with the merged data
         with use_client(token) as client:
             send_data = {k: v for k, v in metadata.model_dump().items() if v is not None}
             response = client.table(settings.metadata_table).upsert(send_data).execute()
     except Exception as e:
-        err_msg = f"An error occurred while trying to upsert the metadata: {e}"
+        err_msg = f"An error occurred while trying to upsert the metadata of Dataset <ID={dataset_id}>: {e}"
         
         # log the error to the database
         logger.error(err_msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})

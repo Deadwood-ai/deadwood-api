@@ -10,4 +10,5 @@ prometheus-client
 rasterio
 rio-cogeo
 fire
+overpy
 pillow

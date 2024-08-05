@@ -160,11 +160,11 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
     additional_information: Optional[str] = None
-    
-    # Gadm labels
-    gadm_name_1: Optional[str] = None
-    gadm_name_2: Optional[str] = None
-    gadm_name_3: Optional[str] = None
+
+    # OSM admin levels
+    admin_level_1: Optional[str] = None
+    admin_level_2: Optional[str] = None
+    admin_level_3: Optional[str] = None
 
     aquisition_year: Optional[int] = None
     aquisition_month: Optional[int] = None
