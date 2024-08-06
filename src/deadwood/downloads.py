@@ -5,9 +5,11 @@ import tempfile
 from pathlib import Path
 
 import geopandas as gpd
+import yaml
 
 from ..models import Metadata, Label
 
+TEMPLATE_PATH = Path(__file__).parent / "templates"
 
 def label_to_geopackage(label_file, label: Label) -> io.BytesIO:
     # create a GeoDataFrame from the label
@@ -26,6 +28,38 @@ def label_to_geopackage(label_file, label: Label) -> io.BytesIO:
     
     return label_file
 
+
+def create_citation_file(metadata: Metadata, filestream=None) -> str:
+    # load the template
+    with open(TEMPLATE_PATH / "CITATION.cff", 'r') as f:
+        template = yaml.safe_load(f)
+    
+    # fill the template
+    template["title"] = f"Deadwood Training Dataset: {metadata.name}"
+
+    # check if the authors can be split into first and last names
+    author_list = []
+    authors = metadata.authors.split(", ")
+    for author in authors:
+        author_list.append({"name": author})
+    
+    # add all authors defined in the template
+    author_list = [*author_list, *template["authors"]]
+
+    # check if there is a DOI
+    if metadata.citation_doi is not None:
+        template['identifiers'] = [{"type": "doi", "value": metadata.citation_doi, "description": "The DOI of the original dataset."}]
+    
+    # add the license
+    template["license"] = f"{metadata.license.value}-4.0".upper()
+
+    # create a buffer to write to
+    if filestream is None:
+        filestream = io.StringIO()
+    yaml.dump(template, filestream)
+
+    return filestream
+    
 
 def bundle_dataset(target_path: str, archive_file_path: str, metadata: Metadata, file_name: str | None = None, label: Label | None = None):
     # build the file name
@@ -49,5 +83,17 @@ def bundle_dataset(target_path: str, archive_file_path: str, metadata: Metadata,
             with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
                 archive.write(label_file.name, arcname="labels.gpkg")
     
+    # finally check if some of the extra-files can be provided
+    license_file = TEMPLATE_PATH / f"{metadata.license.value}.txt"
+    if license_file.exists():
+        with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+            archive.write(license_file, arcname="LICENSE.txt")
+    
+    # create the citation file
+    with tempfile.NamedTemporaryFile('w', suffix=".cff") as citation_file:
+        create_citation_file(metadata, citation_file.file)
+        with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+            archive.write(citation_file.name, arcname="CITATION.cff")
+
     return target_path
             
