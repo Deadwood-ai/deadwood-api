@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
+import pandas as pd
 
 from ..models import Dataset, Label, Metadata
 from ..settings import settings
@@ -79,11 +80,32 @@ async def download_geotiff(dataset_id: str):
 
 
 @router.get("/datasets/{dataset_id}/metadata.{file_format}")
-async def get_metadata(dataset_id: str, file_format: MetadataFormat):
+async def get_metadata(dataset_id: str, file_format: MetadataFormat, background_tasks: BackgroundTasks):
     """
     Download the metadata of the dataset with the given ID.
     """
-    raise NotImplementedError
+    # load the metadata
+    metadata = Metadata.by_id(dataset_id)
+    if metadata is None:
+        raise HTTPException(status_code=404, detail=f"Dataset <ID={dataset_id}> has no Metadata entry.")
+    
+    # switch the format
+    if file_format == MetadataFormat.json:
+        return metadata.model_dump_json()
+    elif file_format == MetadataFormat.csv:
+        # build a DataFrame
+        df = pd.DataFrame.from_records([metadata.model_dump()])
+
+        # create a temporary file
+        target = tempfile.NamedTemporaryFile(suffix=".csv", delete_on_close=False)
+        df.to_csv(target.name, index=False)
+        
+        # add a background task to remove the file after download
+        background_tasks.add_task(lambda: Path(target.name).unlink())
+
+        return FileResponse(target.name, media_type='text/csv', filename="metadata.csv")
+    else:
+        raise HTTPException(status_code=400, detail=f"Format <{file_format}> not supported.")
 
 
 @router.get("/datasets/{dataset_id}/labels.gpkg")
