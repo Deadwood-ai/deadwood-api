@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 from ..models import Dataset, Label, Metadata
 from ..settings import settings
-from ..deadwood.downloads import bundle_dataset
+from ..deadwood.downloads import bundle_dataset, label_to_geopackage
 
 
 # create the router for download
@@ -22,6 +22,7 @@ class MetadataFormat(str, Enum):
 
 # main download route
 @router.get("/datasets/{dataset_id}")
+@router.get("/datasets/{dataset_id}/dataset.zip")
 async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
     """
     Download the full dataset with the given ID.
@@ -86,8 +87,23 @@ async def get_metadata(dataset_id: str, file_format: MetadataFormat):
 
 
 @router.get("/datasets/{dataset_id}/labels.gpkg")
-async def get_labels(dataset_id: str):
+async def get_labels(dataset_id: str, background_tasks: BackgroundTasks):
     """
     Download the labels of the dataset with the given ID.
     """
-    raise NotImplementedError
+    # load the labels
+    label = Label.by_id(dataset_id=dataset_id)
+    if label is None:
+        raise HTTPException(status_code=404, detail=f"Dataset <ID={dataset_id}> has no labels.")
+    
+    # create a temporary file
+    target = tempfile.NamedTemporaryFile(suffix=".gpkg", delete_on_close=False)
+    
+    # remove the file after download
+    background_tasks.add_task(lambda: Path(target.name).unlink())
+
+    # write the labels
+    label_to_geopackage(target.name, label)
+
+    # return the file
+    return FileResponse(target.name, media_type='application/geopackage+sqlite', filename="labels.gpkg")
