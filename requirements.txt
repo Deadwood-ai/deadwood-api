@@ -12,3 +12,4 @@ rio-cogeo
 fire
 overpy
 pillow
+geopandas
