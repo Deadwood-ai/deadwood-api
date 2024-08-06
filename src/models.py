@@ -8,6 +8,8 @@ from pydantic_partial import PartialModelMixin
 from pydantic_settings import BaseSettings
 from rasterio.coords import BoundingBox
 
+from .supabase import SupabaseReader
+from .settings import settings
 
 class PlatformEnum(str, Enum):
     drone = "drone"
@@ -113,6 +115,13 @@ class Dataset(BaseModel):
     @property
     def centroid(self):
         return (self.bbox.left + self.bbox.right) / 2, (self.bbox.bottom + self.bbox.top) / 2
+    
+    @classmethod
+    def by_id(cls, id: int, token: str | None = None) -> 'Dataset':
+        # instatiate a reader
+        reader = SupabaseReader(Model=cls, table=settings.datasets_table, token=token)
+
+        return reader.by_id(id)
 
 
 class Cog(BaseModel):
@@ -191,6 +200,14 @@ class Metadata(MetadataPayloadData):
     # only the aquisition_year is necessary
     aquisition_year: int
 
+    @classmethod
+    def by_id(cls, dataset_id: int, token: str | None = None) -> 'Metadata':
+        # instatiate a reader
+        reader = SupabaseReader(Model=cls, table=settings.metadata_table, token=token)
+
+        return reader.by_id(dataset_id)
+
+
 
 class LabelPayloadData(PartialModelMixin, BaseModel):
     """
@@ -227,3 +244,10 @@ class Label(LabelPayloadData):
         if field is None:
             return None
         return field.isoformat()
+
+    @classmethod
+    def by_id(cls, dataset_id: int, token: str | None = None) -> 'Label':
+        # instatiate a reader
+        reader = SupabaseReader(Model=cls, table=settings.labels_table, token=token)
+
+        return reader.by_id(dataset_id)

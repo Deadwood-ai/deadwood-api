@@ -1,6 +1,7 @@
 from typing import Union, Generator, Literal, Optional
 from contextlib import contextmanager
 
+from pydantic import BaseModel
 from supabase import create_client
 from supabase.client import Client, ClientOptions
 from gotrue import User
@@ -83,3 +84,29 @@ def use_client(access_token: Optional[str] = None) -> Generator[Client, None, No
         # client.auth.sign_out()
         # client.auth.close()
         pass
+
+
+class SupabaseReader(BaseModel):
+    Model: type[BaseModel]
+    table: str
+    token: str | None = None
+
+    def by_id(self, dataset_id: int) -> BaseModel | None:
+        """Reads an instance from the bound model from 
+        supabase.
+        """
+        # figure out the primary filed
+        if 'id' in self.Model.model_fields:
+            id_field = 'id'
+        elif 'dataset_id' in self.Model.model_fields:
+            id_field = 'dataset_id'
+        else:
+            raise AttributeError('Model does not have an id field')
+        
+        with use_client(self.token) as client:
+            result = client.table(self.table).select('*').eq(id_field, dataset_id).execute()
+        
+        if len(result.data) == 0:
+            return None
+
+        return self.Model(**result.data[0])
