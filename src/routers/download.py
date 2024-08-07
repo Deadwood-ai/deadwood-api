@@ -9,6 +9,7 @@ import pandas as pd
 from ..models import Dataset, Label, Metadata
 from ..settings import settings
 from ..deadwood.downloads import bundle_dataset, label_to_geopackage
+from .. import monitoring
 
 
 # create the router for download
@@ -43,6 +44,9 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
     if metadata is None:
         raise HTTPException(status_code=404, detail=f"Dataset <ID={dataset_id}> has no associated Metadata entry.")
     
+    # here we can add the monitoring
+    monitoring.download_dataset.inc()
+
     # load the label
     # TODO: this loads immer nur das erste Label!!!
     label = Label.by_id(dataset_id)
@@ -53,10 +57,14 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
     # build a temporary zip location
     # TODO: we can use a caching here
     target = tempfile.NamedTemporaryFile(suffix=".zip", delete_on_close=False)
-    bundle_dataset(target.name, archive_file_name, metadata=metadata, label=label)
-
-    # remove the temporary file as a background_task
-    background_tasks.add_task(lambda: Path(target.name).unlink())
+    try:
+        bundle_dataset(target.name, archive_file_name, metadata=metadata, label=label)
+    except Exception as e:
+        msg = f"Failed to bundle dataset <ID={dataset_id}>: {str(e)}"
+        raise HTTPException(status_code=500, detail=msg)
+    finally:
+        # remove the temporary file as a background_task
+        background_tasks.add_task(lambda: Path(target.name).unlink())
 
     # now stream the file to the user
     return FileResponse(target.name, media_type='application/zip', filename=f"{Path(metadata.name).stem}.zip")
@@ -72,6 +80,9 @@ async def download_geotiff(dataset_id: str):
 
     if dataset is None:
         raise HTTPException(status_code=404, detail=f"Dataset <ID={dataset_id}> not found.")
+    
+    # here we can add the monitoring
+    monitoring.download_ortho.inc()
 
     # build the file name
     path = settings.archive_path / dataset.file_name
@@ -99,13 +110,11 @@ async def get_metadata(dataset_id: str, file_format: MetadataFormat, background_
         # create a temporary file
         target = tempfile.NamedTemporaryFile(suffix=".csv", delete_on_close=False)
         df.to_csv(target.name, index=False)
-        
+
         # add a background task to remove the file after download
         background_tasks.add_task(lambda: Path(target.name).unlink())
 
         return FileResponse(target.name, media_type='text/csv', filename="metadata.csv")
-    else:
-        raise HTTPException(status_code=400, detail=f"Format <{file_format}> not supported.")
 
 
 @router.get("/datasets/{dataset_id}/labels.gpkg")
