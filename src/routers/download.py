@@ -1,19 +1,64 @@
+from typing import Callable
 from enum import Enum
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import pandas as pd
 
+from ..__version__ import __version__
 from ..models import Dataset, Label, Metadata
 from ..settings import settings
 from ..deadwood.downloads import bundle_dataset, label_to_geopackage
 from .. import monitoring
 
 
+# first approach to implement a rate limit
+CONNECTED_IPS = {}
+
 # create the router for download
-router = APIRouter()
+download_app = FastAPI(
+    title="Deadwood-AI Download API",
+    description="This is the Deadwood-AI Download API. It is used to download single files and full Datasets. This is part of the Deadwood API.",
+    version=__version__,
+)
+
+# add cors
+download_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=False,
+    allow_methods=["OPTIONS", "GET"],
+    allow_headers=["Content-Type", "Accept", "Accept-Encoding"],
+)
+
+# add the middleware for rate limiting
+@download_app.middleware("http")
+async def rate_limiting(request: Request, call_next: Callable[[Request], Response]):
+    # get the ip
+    ip = request.client.host
+
+    # check if the IP is currently downlading
+    if ip in CONNECTED_IPS:
+        return JSONResponse({"detail": "Rate limit exceeded. You can only download one file at a time."}, status_code=429)
+    else:
+        # set the ip
+        CONNECTED_IPS[ip] = True
+    
+    # do the response
+    response = await call_next(request)
+    
+    # in any case delete the ip again
+    del CONNECTED_IPS[ip]
+
+    # return the response
+    return response
+
+# add the gzip middleware
+download_app.add_middleware(GZipMiddleware)
 
 
 # add the format model
@@ -21,10 +66,13 @@ class MetadataFormat(str, Enum):
     json = "json"
     csv = "csv"
 
+@download_app.get("/")
+def info():
+    pass
 
 # main download route
-@router.get("/datasets/{dataset_id}")
-@router.get("/datasets/{dataset_id}/dataset.zip")
+@download_app.get("/datasets/{dataset_id}")
+@download_app.get("/datasets/{dataset_id}/dataset.zip")
 async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
     """
     Download the full dataset with the given ID.
@@ -70,7 +118,7 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
     return FileResponse(target.name, media_type='application/zip', filename=f"{Path(metadata.name).stem}.zip")
 
 
-@router.get("/datasets/{dataset_id}/ortho.tif")
+@download_app.get("/datasets/{dataset_id}/ortho.tif")
 async def download_geotiff(dataset_id: str):
     """
     Download the original GeoTiff of the dataset with the given ID.
@@ -90,7 +138,7 @@ async def download_geotiff(dataset_id: str):
     return FileResponse(path, media_type='image/tiff', filename=dataset.file_name)
 
 
-@router.get("/datasets/{dataset_id}/metadata.{file_format}")
+@download_app.get("/datasets/{dataset_id}/metadata.{file_format}")
 async def get_metadata(dataset_id: str, file_format: MetadataFormat, background_tasks: BackgroundTasks):
     """
     Download the metadata of the dataset with the given ID.
@@ -117,7 +165,7 @@ async def get_metadata(dataset_id: str, file_format: MetadataFormat, background_
         return FileResponse(target.name, media_type='text/csv', filename="metadata.csv")
 
 
-@router.get("/datasets/{dataset_id}/labels.gpkg")
+@download_app.get("/datasets/{dataset_id}/labels.gpkg")
 async def get_labels(dataset_id: str, background_tasks: BackgroundTasks):
     """
     Download the labels of the dataset with the given ID.
