@@ -5,11 +5,11 @@ from starlette.middleware.cors import CORSMiddleware
 import prometheus_client
 
 from .__version__ import __version__
-from .routers import cog, upload, info, auth, labels, thumbnail
+from .routers import cog, upload, info, auth, labels, thumbnail, download
 
 app = FastAPI(
     title="Deadwood-AI API",
-    description="This is the Deadwood-AI API. It is used to manage files uploads to the Deadwood-AI backend and the preprocessing of uploads.",
+    description="This is the Deadwood-AI API. It is used to manage files uploads to the Deadwood-AI backend and the preprocessing of uploads. Note that the download is managed by a sub-application at `/download/`.",
     version=__version__,
 )
 
@@ -22,6 +22,15 @@ app.add_middleware(
     allow_methods=['OPTIONS, GET, POST, PUT'],
     allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
 )
+
+# add the prometheus metrics route
+@app.get("/metrics")
+def get_metrics():
+    """
+    Supplys Prometheus metrics for the storage API.
+    """
+    return Response(prometheus_client.generate_latest(), media_type="text/plain")
+
 
 # add the info route to the app
 app.include_router(info.router)
@@ -42,10 +51,6 @@ app.include_router(labels.router)
 app.include_router(thumbnail.router)
 
 
-# add the prometheus metrics route
-@app.get("/metrics")
-def get_metrics():
-    """
-    Supplys Prometheus metrics for the storage API.
-    """
-    return Response(prometheus_client.generate_latest(), media_type="text/plain")
+# add the download routes to the app
+#app.include_router(download.download_app)
+app.mount("/download", download.download_app)

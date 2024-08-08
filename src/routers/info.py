@@ -12,6 +12,7 @@ class InfoResponse(BaseModel):
     name: str
     description: str
     system: dict
+    client: dict
     endpoints: list[dict]
 
 
@@ -38,15 +39,21 @@ def info(request: Request):
         system=dict(
             python_version=platform.python_version(),
             platform=platform.platform(),
-            host=host,
-            root_path=root_path,
             scopes=list(request.scope.keys()),
             server=request.scope.get("scheme"),
+        ),
+        client=dict(
+            host=host,
+            url=url,
+            path=root_path,
+            client_ip=request.client.host,
+            headers=dict(request.headers)
         ),
         endpoints=[
             dict(url=f"{url}/", description="Get information about the storage API."),
             dict(url=f"{url}/docs", description="OpenAPI documentation - Swagger UI."),
             dict(url=f"{url}/redoc", description="OpenAPI documentation - ReDoc."),
+            dict(url=f"{url}/download", description="Deadwood Download API."),
         ],
     )
 

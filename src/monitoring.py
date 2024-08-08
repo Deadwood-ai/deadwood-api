@@ -21,3 +21,9 @@ metadata_counter = Counter('metadata_counter', 'Number of metadata upserting, fi
 # create metrics for the label routes
 label_invoked = Counter('label_invoked', 'Number of label upserting invoked')
 label_counter = Counter('label_counter', 'Number of label upserting, finishing without error.')
+
+# create metrics for the download routes
+download_dataset = Counter('download_dataset', 'Number of dataset downloads invoked')
+download_ortho = Counter('download_ortho', 'Number of ortho downloads invoked')
+download_label = Counter('download_label', 'Number of label downloads invoked')
+download_metadata = Counter('download_metadata', 'Number of metadata downloads invoked')

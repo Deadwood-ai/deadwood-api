@@ -163,3 +163,4 @@ cython_debug/
 development.ipynb
 data/*
 *.geojson
+.DS_Store
