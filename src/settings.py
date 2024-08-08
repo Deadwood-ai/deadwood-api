@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # some basic settings for the UVICORN server
     uvicorn_host: str = "127.0.0.1"
     uvicorn_port: int = 8000
-    uvicorn_root_path: str = "/"
+    uvicorn_root_path: str = ""
     uvicorn_proxy_headers: bool = True
 
     # supabase settings
