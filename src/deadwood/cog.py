@@ -19,7 +19,9 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", ove
         Function: Returns the cog calculation function the initialized settings
     """
     # we use the gdal
-    return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    #return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+
 
 def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
     """Function to calculate a Cloud Optimized Geotiff (cog) from a geotiff using gdal.
@@ -50,6 +52,8 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
         "-co", f"QUALITY={quality}",
         "-co", "OVERVIEW_COMPRESS=JPEG",
         "-co", "OVERVIEWS=IGNORE_EXISTING",
+        "--config", "GDAL_TIFF_INTERNAL_MASK", "TRUE",
+        
     ]
     if overviews is not None:
         cmd_translate.extend(["-co", f"OVERVIEW_COUNT={overviews}"])
@@ -104,12 +108,14 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
         # GDAL_TIFF_OVR_BLOCKSIZE=f"{blocksize}",
     )
 
+    if quality is not None:
+        output_profile.update(dict(quality=quality))
+
     # run
     cog_translate(
         tiff_file_path,
         cog_target_path,
         output_profile,
-        dst_kwargs=dict(quality=quality),
         config=config,
         overview_level=overviews, 
         use_cog_driver=True,
