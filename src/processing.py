@@ -117,8 +117,8 @@ def process_cog(task: QueueTask):
     with use_client(token) as client:
         try:
             # filter out the None data
-            send_data = {k: v for k, v in cog.model_dump().items() if k != 'id' and v is not None}
-            response = client.table(settings.cogs_table).insert(send_data).execute()
+            send_data = {k: v for k, v in cog.model_dump().items() if v is not None}
+            response = client.table(settings.cogs_table).upsert(send_data).execute()
         except Exception as e:
             msg = f"An error occured while trying to save the COG metadata for dataset {dataset.id}: {str(e)}"
 
