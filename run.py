@@ -2,6 +2,7 @@ import uvicorn
 
 from src.settings import settings
 
+from src.queue import background_process
 
 def run(
     host: str = settings.uvicorn_host,
@@ -24,4 +25,4 @@ def run(
 
 if __name__ == "__main__":
     from fire import Fire
-    Fire(run)
+    Fire({'server': run, 'start-queue': background_process})

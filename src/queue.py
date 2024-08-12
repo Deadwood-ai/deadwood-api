@@ -111,6 +111,9 @@ def background_process():
         if task is not None:
             logger.info(f"Start a new background process for queued task: {task}.", extra={"token": token, "user_id": task.user_id, "dataset_id": task.dataset_id})
             process_task(task, token=token)
+
+            # add another background process with a short timeout
+            Timer(interval=1, function=background_process).start()
         else:
             # we expected a task here, but there was None
             logger.error("Expected a task to process, but none was in the queue.", extra={"token": token})
@@ -122,3 +125,4 @@ def background_process():
         
 if __name__ == '__main__':
     background_process()
+
