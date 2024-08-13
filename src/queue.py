@@ -124,26 +124,6 @@ def background_process():
         Timer(interval=settings.task_retry_delay, function=background_process).start()
 
 
-def restart_stopped_background_process():
-    """
-    This function checks if there are tasks in the queue, but no queue is
-    currently being processed. If this is the case, it will start a new
-    background process, otherwise end.
-    """
-    # use the processor to log in
-    token = login(settings.processor_username, settings.processor_password).session.access_token
-
-    # get the number of currently running tasks
-    num_of_running = current_running_tasks(token)
-    queued_tasks = queue_length(token)
-
-    # only proceed if there are no tasks running, but tasks in the queue
-    if num_of_running == 0 and queued_tasks > 0:
-        logger.info("Restarting background process.", extra={"token": token})
-        background_process()
-
-
-
 if __name__ == '__main__':
     background_process()
 

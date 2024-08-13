@@ -7,6 +7,7 @@ services:
       - 8762:8762
     volumes:
       - ./data:/data
+      - ./src:/app/src
     environment:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
