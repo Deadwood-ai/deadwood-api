@@ -3,7 +3,7 @@ from enum import Enum
 from datetime import datetime
 
 from pydantic import BaseModel, field_serializer, field_validator
-from pydantic_geojson import MultiPolygonModel, PolygonModel
+from pydantic_geojson import MultiPolygonModel
 from pydantic_partial import PartialModelMixin
 from pydantic_settings import BaseSettings
 from rasterio.coords import BoundingBox
@@ -216,7 +216,7 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
     the database.
 
     """
-    aoi: PolygonModel
+    aoi: MultiPolygonModel
     label: MultiPolygonModel
     label_source: LabelSourceEnum
     label_quality: int
