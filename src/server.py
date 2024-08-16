@@ -17,7 +17,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['https://deadtrees.earth', 'https://www.deadtrees.earth'],
-    allow_origin_regex="http://(127\\.0\\.0\\.1|localhost)(:\\d+)?",
+    allow_origin_regex='http://localhost:.*',
     allow_credentials=True,
     allow_methods=['OPTIONS', 'GET', 'POST', 'PUT'],
     allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
