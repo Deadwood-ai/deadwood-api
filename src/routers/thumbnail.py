@@ -67,7 +67,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 
     # convert to base64
     try:
-        imgSrc = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_target_path.read_bytes()).hex()}"
+        imgSrc = f"data:image/jpeg;base64,{base64.b64encode(thumbnail_target_path.read_bytes()).decode()}"
     except Exception as e:
         # log the error to the database
         msg = f"Error converting thumbnail to base64 for dataset {dataset_id}: {str(e)}"
