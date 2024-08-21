@@ -18,10 +18,11 @@ class PlatformEnum(str, Enum):
 
 
 class LicenseEnum(str, Enum):
-    cc_by = "cc-by"
-    cc_by_sa = "cc-by-sa"
-
-
+    cc_by = "CC BY"
+    cc_by_sa = "CC BY-SA"
+    cc_by_nc_sa = "CC BY-NC-SA"
+    mit = "MIT"
+    
 class StatusEnum(str, Enum):
     pending = "pending"
     processing = "processing"
