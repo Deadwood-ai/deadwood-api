@@ -165,7 +165,7 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     name: Optional[str] = None
     license: Optional[LicenseEnum] = None
     platform: Optional[PlatformEnum] = None
-    project_id: Optional[int] = None
+    project_id: Optional[str] = None
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
