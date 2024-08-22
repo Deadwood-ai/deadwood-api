@@ -218,7 +218,7 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
 
     """
     aoi: MultiPolygonModel
-    label: MultiPolygonModel
+    label: Optional[MultiPolygonModel]
     label_source: LabelSourceEnum
     label_quality: int
     label_type: LabelTypeEnum
