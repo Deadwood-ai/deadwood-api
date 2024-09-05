@@ -93,7 +93,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # fill the metadata
     meta = dict(
         dataset_id=dataset.id,
-        cog_folder=cog_folder,
+        cog_folder=str(cog_folder),
         cog_name=file_name,
         cog_url=f"{cog_folder}/{file_name}",
         cog_size=output_path.stat().st_size,

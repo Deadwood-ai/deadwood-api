@@ -19,8 +19,8 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", ove
         Function: Returns the cog calculation function the initialized settings
     """
     # we use the gdal
-    #return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
-    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    # return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
 
 
 def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
@@ -117,7 +117,10 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
         cog_target_path,
         output_profile,
         config=config,
-        overview_level=overviews, 
+        web_optimized=True,
+        # overview_level=overviews, 
+        # indexes=(1, 2, 3),
+        # add_mask=True,
         use_cog_driver=True,
     )
 
