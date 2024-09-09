@@ -61,6 +61,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
 
+
     # get the input path
     input_path = settings.archive_path / dataset.file_name
 
@@ -99,9 +100,9 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # fill the metadata
     meta = dict(
         dataset_id=dataset.id,
-        cog_folder= f"{settings.cog_path}/{str(cog_folder)}",
+        cog_folder= str(cog_folder),
         cog_name=file_name,
-        cog_url=f"{settings.cog_path}/{cog_folder}/{file_name}",
+        cog_url=f"{cog_folder}/{file_name}",
         cog_size=output_path.stat().st_size,
         runtime=t2 - t1,
         user_id=user.id,
