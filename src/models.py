@@ -51,6 +51,7 @@ class ProcessOptions(BaseSettings):
     profile: Optional[str] = "jpeg"
     quality: Optional[int] = 75
     force_recreate: Optional[bool] = False
+    tiling_scheme: Optional[str] = 'web-optimized'
 
 
 class TaskPayload(BaseModel):
