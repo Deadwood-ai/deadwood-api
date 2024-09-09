@@ -51,19 +51,22 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # if we are still here, update the status to processing
     update_status(token, dataset.id, StatusEnum.processing)
 
+
     # get the output path settings
-    cog_folder = settings.cog_path / Path(dataset.file_name).stem
-    file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
+    cog_folder = Path(dataset.file_name).stem
+    if options.tiling_scheme == 'web-optimized':
+        file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
+        # set the overviews to None
+        options.overviews = None
+
+    else:
+        file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
 
     # get the input path
     input_path = settings.archive_path / dataset.file_name
-
-    # handling overviews if tiling scheme is not web-optimized
-    if options.tiling_scheme == 'web-optimized':
-        options.overviews = None
 
     # crete if not exists
     if not output_path.parent.exists():
