@@ -94,7 +94,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     t2 = time.time()
 
     # calcute number of overviews 
-    options.overviews = len(info.IFD) - 1 # since first IFD is the main image
+    overviews = len(info.IFD) - 1 # since first IFD is the main image
 
     # fill the metadata
     meta = dict(
@@ -106,7 +106,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
         runtime=t2 - t1,
         user_id=user.id,
         compression=options.profile,
-        overviews=options.overviews,
+        overviews=overviews,
         tiling_scheme=options.tiling_scheme,
         # !! This is not correct!! 
         resolution=int(options.resolution * 100),
