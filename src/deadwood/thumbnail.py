@@ -5,7 +5,7 @@ from ..settings import settings
 Image.MAX_IMAGE_PIXELS = None
 
 
-def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
+def calculate_thumbnail(tiff_file_path, thumbnail_file_path, thumbnail_size=(256, 256)):
     """
     Creates a thumbnail from a TIFF file.
 
@@ -20,21 +20,23 @@ def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
     """
     # open the image
     with Image.open(tiff_file_path) as img:
-        # create the thumbnail
-        img.thumbnail(size)
-        # Create a new image with a white background (or any other color you prefer)
-        thumb = Image.new("RGB", size, (255, 255, 255))
+        # Downscale the image early to reduce memory usage
+        downscale_factor = img.width // 1000
+        print(f"Downscaling image by factor {downscale_factor}")
+        new_size = (img.width // downscale_factor, img.height // downscale_factor)
+        print(f"Downscaling image from {img.size} to {new_size}")
+        img = img.resize(new_size, Image.LANCZOS)
 
-        # Calculate position to center the image
-        thumb_width, thumb_height = img.size
-        offset = ((size[0] - thumb_width) // 2, (size[1] - thumb_height) // 2)
+        # Convert to RGB if necessary (e.g., RGBA or CMYK)
+        if img.mode in ("RGBA", "LA", "P"):  # Convert if it has transparency or palette
+            print(f"Converting {img.mode} to RGB")
+            img = img.convert("RGB")
 
-        # Paste the thumbnail image onto the square background
-        thumb.paste(img, offset)
+        # Create a thumbnail with the desired size
+        img.thumbnail(thumbnail_size, Image.LANCZOS)
 
-        # save the thumbnail
-        thumb.save(thumbnail_target_path)
-        # return thumb
+        # Save the thumbnail image
+        img.save(thumbnail_file_path, format="JPEG")
 
+        print(f"Thumbnail saved to {thumbnail_file_path}")
 
-#
