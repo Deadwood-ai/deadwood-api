@@ -61,7 +61,6 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
 
-
     # get the input path
     input_path = settings.archive_path / dataset.file_name
 
