@@ -20,7 +20,7 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", ove
     """
     # we use the gdal
     # return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
-    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
 
 
 def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
@@ -64,7 +64,7 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
     return cog_info(cog_target_path)
 
 
-def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
+def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
     """
     Converts a TIFF file to a Cloud Optimized GeoTIFF (COG) format using the specified profile and configuration.
 
@@ -111,13 +111,19 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
     if quality is not None:
         output_profile.update(dict(quality=quality))
 
+    # set web optimized
+    if tiling_scheme == 'web-optimized':
+        web_optimized = True
+    else:
+        web_optimized = False
+
     # run
     cog_translate(
         tiff_file_path,
         cog_target_path,
         output_profile,
         config=config,
-        web_optimized=True,
+        web_optimized = web_optimized,
         # overview_level=overviews, 
         # indexes=(1, 2, 3),
         # add_mask=True,

@@ -101,6 +101,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
         user_id=user.id,
         compression=options.profile,
         overviews=options.overviews,
+        tiling_scheme=options.tiling_scheme,
         # !! This is not correct!! 
         resolution=int(options.resolution * 100),
         blocksize=info.IFD[0].Blocksize[0],
