@@ -4,7 +4,7 @@ import subprocess
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", overviews=None, quality=75, skip_recreate: bool = False):
+def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", overviews=None, quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
     """Function to initiate the cog calculation process.
 
     Args:
@@ -20,6 +20,9 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", ove
     """
     # we use the gdal
     # return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
+    if tiling_scheme == 'web-optimized':
+        overviews = None
+        
     return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
 
 
@@ -114,6 +117,7 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
     # set web optimized
     if tiling_scheme == 'web-optimized':
         web_optimized = True
+        overviews = None
     else:
         web_optimized = False
 
