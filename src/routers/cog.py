@@ -78,7 +78,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
             profile=options.profile, 
             overviews=options.overviews, 
             quality=options.quality,
-            skip_recreate=not options.force_recreate
+            skip_recreate=not options.force_recreate,
             tiling_scheme=options.tiling_scheme
         )
         logger.info(f"COG profile returned for dataset {dataset.id}: {info}", extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
