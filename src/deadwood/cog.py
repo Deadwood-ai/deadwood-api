@@ -114,7 +114,6 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
     # set web optimized
     if tiling_scheme == 'web-optimized':
         web_optimized = True
-        overviews = None
     else:
         web_optimized = False
 
