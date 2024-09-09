@@ -50,7 +50,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
     # get the file path
     tiff_file_path = Path(settings.archive_path) / dataset.file_name
     thumbnail_file_name = dataset.file_name.replace(".tif", ".jpg")
-    thumbnail_target_path = Path(settings.tmp_path) / thumbnail_file_name
+    thumbnail_target_path = Path(settings.thumbnail_path) / thumbnail_file_name
 
     # check if file is already in the bucket
     if thumbnail_target_path.exists():
@@ -81,7 +81,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
             # adding thumbnail as base64 encoded image source to supabase table v1_thumbnails
             response_thumbnails = (
                 client.table(settings.thumbnail_table)
-                .insert({"dataset_id": dataset_id, "base64img": imgSrc, "user_id": user.id}).execute()
+                .insert({"dataset_id": dataset_id, "base64img": imgSrc, "user_id": user.id, 'thumbnail_path': thumbnail_file_name}).execute()
             )
 
     except Exception as e:
