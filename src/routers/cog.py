@@ -54,13 +54,9 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
 
     # get the output path settings
     cog_folder = Path(dataset.file_name).stem
-    if options.tiling_scheme == 'web-optimized':
-        file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
-        # set the overviews to None
-        options.overviews = None
 
-    else:
-        file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
+    file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
+    # file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
@@ -79,7 +75,6 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
             str(input_path), 
             str(output_path), 
             profile=options.profile, 
-            overviews=options.overviews, 
             quality=options.quality,
             skip_recreate=not options.force_recreate,
             tiling_scheme=options.tiling_scheme
@@ -98,12 +93,15 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # stop the timer
     t2 = time.time()
 
+    # calcute number of overviews 
+    options.overviews = len(info.IFD) - 1 # since first IFD is the main image
+
     # fill the metadata
     meta = dict(
         dataset_id=dataset.id,
-        cog_folder=str(cog_folder),
+        cog_folder= f"{settings.cog_path}/{str(cog_folder)}",
         cog_name=file_name,
-        cog_url=f"{cog_folder}/{file_name}",
+        cog_url=f"{settings.cog_path}/{cog_folder}/{file_name}",
         cog_size=output_path.stat().st_size,
         runtime=t2 - t1,
         user_id=user.id,

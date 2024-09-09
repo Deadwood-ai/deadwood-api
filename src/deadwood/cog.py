@@ -4,7 +4,7 @@ import subprocess
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", overviews=None, quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
+def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
     """Function to initiate the cog calculation process.
 
     Args:
@@ -20,7 +20,7 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", ove
     """
     # we use the gdal
     # return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
-    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
+    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
 
 
 def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
@@ -64,7 +64,7 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
     return cog_info(cog_target_path)
 
 
-def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overviews=None, quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
+def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
     """
     Converts a TIFF file to a Cloud Optimized GeoTIFF (COG) format using the specified profile and configuration.
 
@@ -74,7 +74,7 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
         profile (str, optional): COG profile to use. Default is "webp".
                                  Available profiles: "jpeg", "webp", "zstd", "lzw", "deflate", "packbits", "lzma",
                                  "lerc", "lerc_deflate", "lerc_zstd", "raw".
-        overviews (int, optional): Decimation level for generating overviews. If not provided, inferred from data size.
+        tiling_scheme (str, optional): Tiling scheme to use. Default is "web-optimized".
         skip_recreate (bool, optional): If True, skips recreating the COG if it already exists. Default is False.
 
     Returns:
@@ -90,7 +90,7 @@ def _rio_calculate_cog(tiff_file_path, cog_target_path, profile="webp", overview
         - The function returns information about the COG using the `cog_info` function.
 
     Example:
-        >>> calculate_cog("input.tif", "output.cog.tif", profile="jpeg", overviews=3)
+        >>> calculate_cog("input.tif", "output.cog.tif", profile="jpeg")
 
     """
     # check if the COG already exists
