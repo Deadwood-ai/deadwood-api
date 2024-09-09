@@ -61,6 +61,10 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
     # get the input path
     input_path = settings.archive_path / dataset.file_name
 
+    # handling overviews if tiling scheme is not web-optimized
+    if options.tiling_scheme == 'web-optimized':
+        options.overviews = None
+
     # crete if not exists
     if not output_path.parent.exists():
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -75,6 +79,7 @@ async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], 
             overviews=options.overviews, 
             quality=options.quality,
             skip_recreate=not options.force_recreate
+            tiling_scheme=options.tiling_scheme
         )
         logger.info(f"COG profile returned for dataset {dataset.id}: {info}", extra={"token": token, "dataset_id": dataset.id, "user_id": user.id})
     except Exception as e:
