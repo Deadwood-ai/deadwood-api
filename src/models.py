@@ -46,11 +46,12 @@ class LabelTypeEnum(str, Enum):
 
 
 class ProcessOptions(BaseSettings):
-    overviews: Optional[int] = 8
+    # overviews: Optional[int] = 8
     resolution: Optional[float] = 0.04
     profile: Optional[str] = "jpeg"
     quality: Optional[int] = 75
     force_recreate: Optional[bool] = False
+    tiling_scheme: Optional[str] = 'web-optimized'
 
 
 class TaskPayload(BaseModel):
