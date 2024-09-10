@@ -19,8 +19,8 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", qua
         Function: Returns the cog calculation function the initialized settings
     """
     # we use the gdal
-    # return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=overviews, quality=quality, skip_recreate=skip_recreate)
-    return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
+    return _gdal_calculate_cog(tiff_file_path, cog_target_path, compress=profile, overviews=None, quality=quality, skip_recreate=skip_recreate)
+    # return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
 
 
 def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
@@ -51,6 +51,7 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
         "-co", "BLOCKSIZE=512",
         "-co", f"QUALITY={quality}",
         "-co", "OVERVIEW_COMPRESS=JPEG",
+        "-co", 'TILING_SCHEME=GoogleMapsCompatible',
         "-co", "OVERVIEWS=IGNORE_EXISTING",
         "--config", "GDAL_TIFF_INTERNAL_MASK", "TRUE",
         
