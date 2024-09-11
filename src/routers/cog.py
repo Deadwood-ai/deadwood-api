@@ -22,7 +22,7 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-@router.put("/datasets/{dataset_id}/force-cog-build")
+# @router.put("/datasets/{dataset_id}/force-cog-build")
 async def create_direct_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annotated[str, Depends(oauth2_scheme)]):
     """
     This route will bypass the queue and directly start the cog calculation for the given dataset_id.
