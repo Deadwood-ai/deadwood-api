@@ -18,10 +18,11 @@ class PlatformEnum(str, Enum):
 
 
 class LicenseEnum(str, Enum):
-    cc_by = "cc-by"
-    cc_by_sa = "cc-by-sa"
-
-
+    cc_by = "CC BY"
+    cc_by_sa = "CC BY-SA"
+    cc_by_nc_sa = "CC BY-NC-SA"
+    mit = "MIT"
+    
 class StatusEnum(str, Enum):
     pending = "pending"
     processing = "processing"
@@ -45,11 +46,12 @@ class LabelTypeEnum(str, Enum):
 
 
 class ProcessOptions(BaseSettings):
-    overviews: Optional[int] = 8
+    # overviews: Optional[int] = 8
     resolution: Optional[float] = 0.04
     profile: Optional[str] = "jpeg"
     quality: Optional[int] = 75
     force_recreate: Optional[bool] = False
+    tiling_scheme: Optional[str] = 'web-optimized'
 
 
 class TaskPayload(BaseModel):
@@ -164,7 +166,7 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
     name: Optional[str] = None
     license: Optional[LicenseEnum] = None
     platform: Optional[PlatformEnum] = None
-    project_id: Optional[int] = None
+    project_id: Optional[str] = None
     authors: Optional[str] = None
     spectral_properties: Optional[str] = None
     citation_doi: Optional[str] = None
@@ -217,7 +219,7 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
 
     """
     aoi: MultiPolygonModel
-    label: MultiPolygonModel
+    label: Optional[MultiPolygonModel]
     label_source: LabelSourceEnum
     label_quality: int
     label_type: LabelTypeEnum

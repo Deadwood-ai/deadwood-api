@@ -49,10 +49,13 @@ async def rate_limiting(request: Request, call_next: Callable[[Request], Respons
         CONNECTED_IPS[ip] = True
     
     # do the response
-    response = await call_next(request)
-    
-    # in any case delete the ip again
-    del CONNECTED_IPS[ip]
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))
+    finally:
+        # in any case delete the ip again
+        del CONNECTED_IPS[ip]
 
     # return the response
     return response

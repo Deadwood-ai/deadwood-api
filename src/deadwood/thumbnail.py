@@ -1,11 +1,12 @@
 from PIL import Image
-
+import rasterio
+import numpy as np
 from ..settings import settings
 
 Image.MAX_IMAGE_PIXELS = None
 
 
-def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
+def calculate_thumbnail(tiff_file_path, thumbnail_file_path, size=(256, 256)):
     """
     Creates a thumbnail from a TIFF file.
 
@@ -18,9 +19,8 @@ def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
        None
 
     """
-    # open the image
     with Image.open(tiff_file_path) as img:
-        # create the thumbnail
+            # create the thumbnail
         img.thumbnail(size)
         # Create a new image with a white background (or any other color you prefer)
         thumb = Image.new("RGB", size, (255, 255, 255))
@@ -33,8 +33,5 @@ def calculate_thumbnail(tiff_file_path, thumbnail_target_path, size=(256, 256)):
         thumb.paste(img, offset)
 
         # save the thumbnail
-        thumb.save(thumbnail_target_path)
-        # return thumb
+        thumb.save(thumbnail_file_path)
 
-
-#

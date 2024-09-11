@@ -105,6 +105,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     # try to open with rasterio
     with rasterio.open(str(target_path), 'r') as src:
         bounds = src.bounds
+        transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *bounds)
     
     # stop the timer
     t2 = time.time()
@@ -118,7 +119,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
         copy_time=t2 - t1,
         sha256=sha256,
         #bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
-        bbox=bounds,
+        bbox=transformed_bounds,
         status=StatusEnum.pending,
         user_id=user.id
     )

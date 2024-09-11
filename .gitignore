@@ -164,3 +164,7 @@ development.ipynb
 data/*
 *.geojson
 .DS_Store
+
+
+# debugging scripts
+scripts/*
