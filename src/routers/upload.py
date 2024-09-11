@@ -40,6 +40,7 @@ def format_size(size: int) -> str:
     else:
         return f"{size / 1024**3:.2f} GB"
 
+
 # Main routes for the logic
 @router.post("/datasets")
 async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
