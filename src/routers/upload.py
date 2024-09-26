@@ -13,13 +13,14 @@ from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
 from ..deadwood.osm import get_admin_tags
-from  .. import monitoring
+from .. import monitoring
 
 # create the router for the upload
 router = APIRouter()
 
 # create the OAuth2 password scheme for supabase login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 # little helper
 def format_size(size: int) -> str:
@@ -41,19 +42,45 @@ def format_size(size: int) -> str:
         return f"{size / 1024**3:.2f} GB"
 
 
+# helper function to copy the file and compute the sha256 checksum
+async def copy_file_and_compute_sha256_in_chunks(
+    file: UploadFile, target_path: Path
+) -> str:
+    """Copy the uploaded file to the target path and compute its SHA256 checksum.
+
+    Args:
+        file (UploadFile): The uploaded file from the client.
+        target_path (Path): The destination path where the file will be saved.
+
+    Returns:
+        str: The SHA256 checksum of the file.
+    """
+    sha256_hash = hashlib.sha256()
+    with target_path.open("wb") as buffer:
+        while True:
+            contents = await file.read(1024 * 1024)  # Read in 1MB chunks
+            if not contents:
+                break
+            buffer.write(contents)
+            sha256_hash.update(contents)
+    return sha256_hash.hexdigest()
+
+
 # Main routes for the logic
 @router.post("/datasets")
-async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
+async def upload_geotiff(
+    file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]
+):
     """
     Create a new Dataset by uploading a GeoTIFF file.
 
-    Further metadata is not yet necessary. The response will contain a Dataset.id 
-    that is needed for subsequent calls to the API. Once, the GeoTIFF is uploaded, 
-    the backend will start pre-processing the file. 
+    Further metadata is not yet necessary. The response will contain a Dataset.id
+    that is needed for subsequent calls to the API. Once, the GeoTIFF is uploaded,
+    the backend will start pre-processing the file.
     It can only be used in the front-end once preprocessing finished AND all mandatory
     metadata is set.
 
-    To send the file use the `multipart/form-data` content type. The file has to be sent as the 
+    To send the file use the `multipart/form-data` content type. The file has to be sent as the
     value of a field named `file`. For example, using HTML forms like this:
 
     ```html
@@ -81,7 +108,7 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     user = verify_token(token)
     if not user:
         return HTTPException(status_code=401, detail="Invalid token")
-    
+
     # we create a uuid for this dataset
     uid = str(uuid.uuid4())
 
@@ -89,74 +116,94 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
     file_name = f"{uid}_{Path(file.filename).stem}.tif"
 
     # use the settings path to figure out a new location for this file
-    target_path = settings.archive_path  / file_name
+    target_path = settings.archive_path / file_name
 
     # start a timer
     t1 = time.time()
 
-    # save the file
-    with target_path.open('wb') as buffer:
-        buffer.write(await file.read())
-    
-    # create the checksum
-    with target_path.open('rb') as f:
-        sha256 = hashlib.sha256(f.read()).hexdigest()
+    # save the file and compute the checksum incrementally
+    try:
+        sha256 = await copy_file_and_compute_sha256_in_chunks(file, target_path)
+    except Exception as e:
+        logger.exception(
+            f"An error occurred while saving the file: {str(e)}",
+            extra={"token": token, "user_id": user.id},
+        )
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred while saving the file: {str(e)}"
+        )
 
     # try to open with rasterio
-    with rasterio.open(str(target_path), 'r') as src:
+    with rasterio.open(str(target_path), "r") as src:
         bounds = src.bounds
-        transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *bounds)
-    
+        transformed_bounds = rasterio.warp.transform_bounds(
+            src.crs, "EPSG:4326", *bounds
+        )
+
     # stop the timer
     t2 = time.time()
 
     # fill the metadata
-    #dataset = Dataset(
+    # dataset = Dataset(
     data = dict(
         file_name=target_path.name,
         file_alias=file.filename,
         file_size=target_path.stat().st_size,
         copy_time=t2 - t1,
         sha256=sha256,
-        #bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
+        # bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
         bbox=transformed_bounds,
         status=StatusEnum.pending,
-        user_id=user.id
+        user_id=user.id,
     )
     # print(data)
-    dataset=Dataset(**data)
+    dataset = Dataset(**data)
 
     # upload the dataset
     with use_client(token) as client:
         try:
-            send_data = {k: v for k, v in dataset.model_dump().items() if k != 'id' and v is not None}
+            send_data = {
+                k: v
+                for k, v in dataset.model_dump().items()
+                if k != "id" and v is not None
+            }
             response = client.table(settings.datasets_table).insert(send_data).execute()
         except Exception as e:
-            logger.exception(f"An error occurred while trying to upload the dataset: {str(e)}", extra={"token": token, "user_id": user.id})
-            raise HTTPException(status_code=400, detail=f"An error occurred while trying to upload the dataset: {str(e)}")
-    
+            logger.exception(
+                f"An error occurred while trying to upload the dataset: {str(e)}",
+                extra={"token": token, "user_id": user.id},
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"An error occurred while trying to upload the dataset: {str(e)}",
+            )
+
     # update the dataset with the id
     dataset = Dataset(**response.data[0])
-    
+
     # do some monitoring
     monitoring.uploads_counter.inc()
     monitoring.upload_time.observe(dataset.copy_time)
     monitoring.upload_size.observe(dataset.file_size)
 
     logger.info(
-        f"Created new dataset <ID={dataset.id}> with file {dataset.file_alias}. ({format_size(dataset.file_size)}). Took {dataset.copy_time:.2f}s.", 
-        extra={"token": token, "user_id": user.id, "dataset_id": dataset.id}
+        f"Created new dataset <ID={dataset.id}> with file {dataset.file_alias}. ({format_size(dataset.file_size)}). Took {dataset.copy_time:.2f}s.",
+        extra={"token": token, "user_id": user.id, "dataset_id": dataset.id},
     )
 
     return dataset
 
 
 @router.put("/datasets/{dataset_id}/metadata")
-def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annotated[str, Depends(oauth2_scheme)]):
+def upsert_metadata(
+    dataset_id: int,
+    payload: MetadataPayloadData,
+    token: Annotated[str, Depends(oauth2_scheme)],
+):
     """
     Insert or Update the metadata of a Dataset.
 
-    Right now, the API requires that always a valid Metadata instance is sent. 
+    Right now, the API requires that always a valid Metadata instance is sent.
     Thus, the frontend can change the values and send the whole Metadata object.
     The token needs to include the access token of the user that is allowed to change the metadata.
 
@@ -171,22 +218,34 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
 
     # load the metadata info - if it already exists in the database
     with use_client(token) as client:
-        response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
+        response = (
+            client.table(settings.metadata_table)
+            .select("*")
+            .eq("dataset_id", dataset_id)
+            .execute()
+        )
 
         if len(response.data) > 0:
             metadata = Metadata(**response.data[0]).model_dump()
         else:
-            logger.info(f"No existing Metadata found for Dataset {dataset_id}. Creating a new one.", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
-            metadata = {'dataset_id': dataset_id, 'user_id': user.id}
+            logger.info(
+                f"No existing Metadata found for Dataset {dataset_id}. Creating a new one.",
+                extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
+            )
+            metadata = {"dataset_id": dataset_id, "user_id": user.id}
 
     # update the given metadata if any with the payload
     try:
-        metadata.update(**{k: v for k, v in payload.model_dump().items() if v is not None})
+        metadata.update(
+            **{k: v for k, v in payload.model_dump().items() if v is not None}
+        )
         metadata = Metadata(**metadata)
     except Exception as e:
         msg = f"An error occurred while trying to create the updated metadata: {str(e)}"
 
-        logger.exception(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
+        logger.exception(
+            msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id}
+        )
         return HTTPException(status_code=400, detail=msg)
 
     # if the metadata does not have admin level names, query them from OSM
@@ -194,7 +253,12 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
         # get the bounding box
         try:
             with use_client(token) as client:
-                response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
+                response = (
+                    client.table(settings.datasets_table)
+                    .select("*")
+                    .eq("id", dataset_id)
+                    .execute()
+                )
                 data = Dataset(**response.data[0])
 
                 # get the tags of the centroid
@@ -207,28 +271,36 @@ def upsert_metadata(dataset_id: int, payload: MetadataPayloadData, token: Annota
 
         except Exception as e:
             msg = f"An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}"
-            logger.error(msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
-        
+            logger.error(
+                msg,
+                extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
+            )
+
     try:
         # upsert the given metadata entry with the merged data
         with use_client(token) as client:
-            send_data = {k: v for k, v in metadata.model_dump().items() if v is not None}
+            send_data = {
+                k: v for k, v in metadata.model_dump().items() if v is not None
+            }
             response = client.table(settings.metadata_table).upsert(send_data).execute()
     except Exception as e:
         err_msg = f"An error occurred while trying to upsert the metadata of Dataset <ID={dataset_id}>: {e}"
-        
-        # log the error to the database
-        logger.error(err_msg, extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
 
-        # return a response with the error message
-        return HTTPException(
-            status_code=400,
-            detail=err_msg
+        # log the error to the database
+        logger.error(
+            err_msg,
+            extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
         )
 
+        # return a response with the error message
+        return HTTPException(status_code=400, detail=err_msg)
+
     # no error occured, so return the upserted metadata
-    logger.info(f"Upserted metadata for Dataset {dataset_id}. Upsert payload provided by user: {payload}", extra={"token": token, "dataset_id": dataset_id, "user_id": user.id})
-    
+    logger.info(
+        f"Upserted metadata for Dataset {dataset_id}. Upsert payload provided by user: {payload}",
+        extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
+    )
+
     # update the metadata
     metadata = Metadata(**response.data[0])
     monitoring.metadata_counter.inc()
