@@ -4,9 +4,12 @@ from pathlib import Path
 import time
 import hashlib
 import rasterio
+import os
 
-from fastapi import APIRouter, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
+from tempfile import NamedTemporaryFile
+
 
 from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum
 from ..supabase import use_client, verify_token
@@ -42,28 +45,125 @@ def format_size(size: int) -> str:
         return f"{size / 1024**3:.2f} GB"
 
 
-# helper function to copy the file and compute the sha256 checksum
-async def copy_file_and_compute_sha256_in_chunks(
-    file: UploadFile, target_path: Path
-) -> str:
-    """Copy the uploaded file to the target path and compute its SHA256 checksum.
+async def combine_chunks(temp_dir: Path, total_chunks: int, filename: str) -> Path:
+    """Combine all chunks into a single file."""
+    combined_file = temp_dir / filename
+    with combined_file.open("wb") as outfile:
+        for i in range(int(total_chunks)):
+            chunk_file = temp_dir / f"chunk_{i}"
+            with chunk_file.open("rb") as infile:
+                outfile.write(infile.read())
+    return combined_file
 
-    Args:
-        file (UploadFile): The uploaded file from the client.
-        target_path (Path): The destination path where the file will be saved.
 
-    Returns:
-        str: The SHA256 checksum of the file.
-    """
+def compute_sha256(file_path: Path) -> str:
+    """Compute SHA256 checksum of a file."""
     sha256_hash = hashlib.sha256()
-    with target_path.open("wb") as buffer:
-        while True:
-            contents = await file.read(1024 * 1024)  # Read in 1MB chunks
-            if not contents:
-                break
-            buffer.write(contents)
-            sha256_hash.update(contents)
+    with file_path.open("rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
+
+def create_dataset_entry(
+    filename: str, target_path: Path, sha256: str, bounds, user_id: str, copy_time: int
+) -> Dataset:
+    """Create a new dataset entry in the database."""
+    data = dict(
+        file_name=target_path.name,
+        file_alias=filename,
+        file_size=target_path.stat().st_size,
+        sha256=sha256,
+        bbox=bounds,
+        status=StatusEnum.pending,
+        user_id=user_id,
+        copy_time=copy_time,
+    )
+    dataset = Dataset(**data)
+
+    with use_client() as client:
+        try:
+            send_data = {
+                k: v
+                for k, v in dataset.model_dump().items()
+                if k != "id" and v is not None
+            }
+            response = client.table(settings.datasets_table).insert(send_data).execute()
+        except Exception as e:
+            logger.exception(f"Error uploading dataset: {str(e)}")
+            raise HTTPException(
+                status_code=400, detail=f"Error uploading dataset: {str(e)}"
+            )
+
+    return Dataset(**response.data[0])
+
+
+@router.post("/datasets/chunk")
+async def upload_geotiff_chunk(
+    file: UploadFile,
+    chunk: Annotated[int, Form()],
+    chunks: Annotated[int, Form()],
+    filename: Annotated[str, Form()],
+    copy_time: Annotated[int, Form()],
+    upload_id: Annotated[str, Form()],
+    token: Annotated[str, Depends(oauth2_scheme)],
+):
+    """
+    Handle chunked upload of a GeoTIFF file.
+
+    This endpoint receives chunks of a file, saves them temporarily,
+    and combines them when all chunks are received.
+    """
+    # Verify the token
+    user = verify_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Define the path for temporary chunk storage
+    temp_dir = Path(settings.tmp_upload_path) / upload_id
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save the chunk
+    chunk_file = temp_dir / f"chunk_{chunk}"
+    with chunk_file.open("wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    # If this is the last chunk, combine all chunks
+    if int(chunk) == int(chunks) - 1:
+        combined_file = await combine_chunks(temp_dir, chunks, filename)
+
+        # Process the combined file (similar to the original upload endpoint)
+        uid = str(uuid.uuid4())
+        file_name = f"{uid}_{Path(filename).stem}.tif"
+        target_path = settings.archive_path / file_name
+
+        # Move the combined file to the target path
+        os.rename(combined_file, target_path)
+
+        # Compute SHA256 checksum
+        sha256 = compute_sha256(target_path)
+
+        # Open with rasterio and get bounds
+        with rasterio.open(str(target_path), "r") as src:
+            bounds = src.bounds
+            transformed_bounds = rasterio.warp.transform_bounds(
+                src.crs, "EPSG:4326", *bounds
+            )
+
+        # Create dataset entry
+        dataset = create_dataset_entry(
+            filename, target_path, sha256, transformed_bounds, user.id, copy_time
+        )
+
+        # Clean up temporary files
+        for chunk_file in temp_dir.glob("chunk_*"):
+            chunk_file.unlink()
+        temp_dir.rmdir()
+
+        return dataset
+
+    return {"message": f"Chunk {chunk} of {chunks} received"}
 
 
 # Main routes for the logic
@@ -121,17 +221,13 @@ async def upload_geotiff(
     # start a timer
     t1 = time.time()
 
-    # save the file and compute the checksum incrementally
-    try:
-        sha256 = await copy_file_and_compute_sha256_in_chunks(file, target_path)
-    except Exception as e:
-        logger.exception(
-            f"An error occurred while saving the file: {str(e)}",
-            extra={"token": token, "user_id": user.id},
-        )
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred while saving the file: {str(e)}"
-        )
+    # save the file
+    with target_path.open("wb") as buffer:
+        buffer.write(await file.read())
+
+    # create the checksum
+    with target_path.open("rb") as f:
+        sha256 = hashlib.sha256(f.read()).hexdigest()
 
     # try to open with rasterio
     with rasterio.open(str(target_path), "r") as src:

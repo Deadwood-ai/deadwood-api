@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
     thumbnails_dir: str = "thumbnails"
+    tmp_upload_dir: Path = Path("tmp")
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
@@ -46,6 +47,14 @@ class Settings(BaseSettings):
     queue_position_table: str = "v1_queue_positions"
     concurrent_tasks: int = 2
     task_retry_delay: int = 60
+
+    @property
+    def tmp_upload_path(self) -> Path:
+        path = self.base_path / self.tmp_upload_dir
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+
+        return path
 
     @property
     def base_path(self) -> Path:
