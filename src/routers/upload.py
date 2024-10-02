@@ -249,7 +249,6 @@ async def upload_geotiff(
         file_size=target_path.stat().st_size,
         copy_time=t2 - t1,
         sha256=sha256,
-        # bbox=f"BOX({bounds.bottom} {bounds.left}, {bounds.top} {bounds.right})",
         bbox=transformed_bounds,
         status=StatusEnum.pending,
         user_id=user.id,
