@@ -65,8 +65,14 @@ class TaskPayload(BaseModel):
 
 
 class QueueTask(BaseModel):
+    id: int
+    dataset_id: int
+    user_id: str  # Make sure this field is present
+    build_args: ProcessOptions
+    priority: int
+    is_processing: bool
     current_position: int
-    estimated_time: float | None = None  # Make this field optional with a default of None
+    estimated_time: float | None = None
 
 
 class Dataset(BaseModel):
