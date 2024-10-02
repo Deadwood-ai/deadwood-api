@@ -17,6 +17,11 @@ from ..logger import logger
 from ..deadwood.osm import get_admin_tags
 from .. import monitoring
 
+# Add this import at the top of the file
+import tempfile
+import shutil
+from typing import Dict
+
 # create the router for the upload
 router = APIRouter()
 
@@ -118,8 +123,8 @@ async def upload_geotiff_chunk(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Define the path for temporary chunk storage
-    tmp_dir = Path(settings.tmp_upload_path) / upload_id
+    # Create a temporary directory using the upload_id
+    tmp_dir = Path(tempfile.gettempdir()) / upload_id
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the chunk
@@ -138,7 +143,7 @@ async def upload_geotiff_chunk(
         target_path = settings.archive_path / file_name
 
         # Move the combined file to the target path
-        os.rename(combined_file, target_path)
+        shutil.move(str(combined_file), str(target_path))
 
         # Compute SHA256 checksum
         sha256 = compute_sha256(target_path)
@@ -155,10 +160,8 @@ async def upload_geotiff_chunk(
             filename, target_path, sha256, transformed_bounds, user.id, copy_time
         )
 
-        # Clean up temporary files
-        for chunk_file in tmp_dir.glob("chunk_*"):
-            chunk_file.unlink()
-        tmp_dir.rmdir()
+        # Clean up the temporary directory
+        shutil.rmtree(tmp_dir)
 
         return dataset
 
