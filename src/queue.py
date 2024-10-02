@@ -7,7 +7,6 @@ from .processing import process_cog
 from .logger import logger
 
 
-
 def current_running_tasks(token: str) -> int:
     """Get the number of currently actively processing tasks from supabase.
 
@@ -18,9 +17,14 @@ def current_running_tasks(token: str) -> int:
         int: number of currently active tasks
     """
     with use_client(token) as client:
-        response = client.table(settings.queue_table).select("id").eq("is_processing", True).execute()
+        response = (
+            client.table(settings.queue_table)
+            .select("id")
+            .eq("is_processing", True)
+            .execute()
+        )
         num_of_tasks = len(response.data)
-    
+
     return num_of_tasks
 
 
@@ -50,8 +54,10 @@ def get_next_task(token: str) -> QueueTask:
         QueueTask: The next task in the queue as a QueueTask class instance
     """
     with use_client(token) as client:
-        response = client.table(settings.queue_position_table).select("*").limit(1).execute()
-    
+        response = (
+            client.table(settings.queue_position_table).select("*").limit(1).execute()
+        )
+
     if not response.data or len(response.data) == 0:
         return None
     return QueueTask(**response.data[0])
@@ -68,8 +74,10 @@ def process_task(task: QueueTask, token: str):
 
     # mark this task as processing
     with use_client(token) as client:
-        client.table(settings.queue_table).update({"is_processing": True}).eq("id", task.id).execute()
-    
+        client.table(settings.queue_table).update({"is_processing": True}).eq(
+            "id", task.id
+        ).execute()
+
     # Do the main processing here
     try:
         process_cog(task)
@@ -86,14 +94,16 @@ def process_task(task: QueueTask, token: str):
 
 def background_process():
     """
-    This process checks if there is anything to do in the queue. 
+    This process checks if there is anything to do in the queue.
     If so, it checks the currently running tasks against the maximum allowed tasks.
-    If another task can be started, it will do so, if not, the background_process is 
+    If another task can be started, it will do so, if not, the background_process is
     added to the FastAPI background tasks with a configured delay.
 
     """
     # use the processor to log in
-    token = login(settings.processor_username, settings.processor_password).session.access_token
+    token = login(
+        settings.processor_username, settings.processor_password
+    ).session.access_token
 
     # get the number of currently running tasks
     num_of_running = current_running_tasks(token)
@@ -109,21 +119,33 @@ def background_process():
         # get the next task
         task = get_next_task(token)
         if task is not None:
-            logger.info(f"Start a new background process for queued task: {task}.", extra={"token": token, "user_id": task.user_id, "dataset_id": task.dataset_id})
+            logger.info(
+                f"Start a new background process for queued task: {task}.",
+                extra={
+                    "token": token,
+                    "user_id": task.user_id,
+                    "dataset_id": task.dataset_id,
+                },
+            )
             process_task(task, token=token)
 
             # add another background process with a short timeout
             Timer(interval=1, function=background_process).start()
         else:
             # we expected a task here, but there was None
-            logger.error("Expected a task to process, but none was in the queue.", extra={"token": token})
+            logger.error(
+                "Expected a task to process, but none was in the queue.",
+                extra={"token": token},
+            )
     else:
         # inform no spot available
-        logger.debug(f"No spot available for new task. Retry in {settings.task_retry_delay} seconds.", extra={"token": token})
+        logger.debug(
+            f"No spot available for new task. Retry in {settings.task_retry_delay} seconds.",
+            extra={"token": token},
+        )
         # restart this process after the configured delay
         Timer(interval=settings.task_retry_delay, function=background_process).start()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     background_process()
-
