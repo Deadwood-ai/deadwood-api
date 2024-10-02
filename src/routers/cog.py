@@ -225,7 +225,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
         return HTTPException(status_code=500, detail=msg)
     
     # start the background task
-    background_tasks.add_task(background_process)
+    # background_tasks.add_task(background_process)
 
     # return the task
     return task
