@@ -60,7 +60,7 @@ def process_cog(task: QueueTask):
 
     # get the output settings
     cog_folder = Path(dataset.file_name).stem
-    file_name = f"{cog_folder}_cog_{options.profile}_ovr{options.overviews}_q{options.quality}.tif"
+    file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
 
     # output path is the cog folder, then a folder for the dataset, then the cog file
     output_path = settings.cog_path / cog_folder / file_name
@@ -75,9 +75,10 @@ def process_cog(task: QueueTask):
             str(input_path), 
             str(output_path), 
             profile=options.profile, 
-            overviews=options.overviews, 
             quality=options.quality,
-            skip_recreate=not options.force_recreate
+            skip_recreate=not options.force_recreate,
+            tiling_scheme=options.tiling_scheme
+
         )
         logger.info(f"COG profile returned for dataset {dataset.id}: {info}", extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id})
     except Exception as e:
@@ -95,6 +96,9 @@ def process_cog(task: QueueTask):
     # stop the timer
     t2 = time.time()
 
+    # calcute number of overviews 
+    overviews = len(info.IFD) - 1 # since first IFD is the main image
+
     # fill the metadata
     meta = dict(
         dataset_id=dataset.id,
@@ -105,7 +109,8 @@ def process_cog(task: QueueTask):
         runtime=t2 - t1,
         user_id=task.user_id,
         compression=options.profile,
-        overviews=options.overviews,
+        overviews=overviews,
+        tiling_scheme=options.tiling_scheme,
         # !! This is not correct!! 
         resolution=int(options.resolution * 100),
         blocksize=info.IFD[0].Blocksize[0],
