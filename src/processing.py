@@ -10,13 +10,13 @@ from . import monitoring
 from .deadwood.cog import calculate_cog
 
 
-def copy_pull_file_from_remote(remote_file_path: str, local_file_path: str):
+def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(
-        settings.processing_server_ip,
-        settings.processing_server_username,
-        settings.processing_server_password,
+        settings.storage_server_ip,
+        settings.storage_server_username,
+        settings.storage_server_password,
     )
     sftp = ssh.open_sftp()
     sftp.get(remote_file_path, local_file_path)
@@ -24,13 +24,13 @@ def copy_pull_file_from_remote(remote_file_path: str, local_file_path: str):
     ssh.close()
 
 
-def copy_push_file_to_remote(local_file_path: str, remote_file_path: str):
+def push_file_to_storage_server(local_file_path: str, remote_file_path: str):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(
-        settings.processing_server_ip,
-        settings.processing_server_username,
-        settings.processing_server_password,
+        settings.storage_server_ip,
+        settings.storage_server_username,
+        settings.storage_server_password,
     )
     sftp = ssh.open_sftp()
     sftp.put(local_file_path, remote_file_path)
@@ -97,8 +97,19 @@ def process_cog(task: QueueTask):
     # update the status to processing
     update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
 
-    # get the input path
+    # get local file path
     input_path = settings.archive_path / dataset.file_name
+
+    # get the remote file path
+    storage_server_file_path = (
+        f"{settings.storage_server_data_path}/archive/{dataset.file_name}"
+    )
+
+    # pull the file from the storage server
+    logger.info(
+        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
+    )
+    pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
     # get the options
     options = task.build_args
@@ -144,6 +155,16 @@ def process_cog(task: QueueTask):
     # get the size of the output file
     pass
     # stop the timer
+
+    # push the file to the storage server
+    storage_server_cog_path = (
+        f"{settings.storage_server_data_path}/cogs/{cog_folder}/{file_name}"
+    )
+    logger.info(
+        f"Pushing file to storage server: {output_path} to {storage_server_cog_path}"
+    )
+    push_file_to_storage_server(str(output_path), storage_server_cog_path)
+
     t2 = time.time()
 
     # calcute number of overviews
@@ -166,7 +187,7 @@ def process_cog(task: QueueTask):
         blocksize=info.IFD[0].Blocksize[0],
     )
 
-    # dev
+    # save the metadata to the database
     cog = Cog(**meta)
 
     with use_client(token) as client:

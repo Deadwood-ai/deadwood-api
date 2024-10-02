@@ -31,9 +31,10 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # processing server settings
-    processing_server_ip: str = ""
-    processing_server_username: str = ""
-    processing_server_password: str = ""
+    storage_server_ip: str = ""
+    storage_server_username: str = ""
+    storage_server_password: str = ""
+    storage_server_data_path: str = ""
 
     # supabase settings
     processor_username: str = "processor@deadtrees.earth"
