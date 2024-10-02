@@ -139,8 +139,8 @@ async def upload_geotiff_chunk(
 
         # Process the combined file (similar to the original upload endpoint)
         uid = str(uuid.uuid4())
-        file_name = f"{uid}_{Path(filename).stem}.tif"
-        target_path = settings.archive_path / file_name
+        filename_uid = f"{uid}_{Path(filename).stem}.tif"
+        target_path = settings.archive_path / filename_uid
 
         # Move the combined file to the target path
         shutil.move(str(combined_file), str(target_path))
