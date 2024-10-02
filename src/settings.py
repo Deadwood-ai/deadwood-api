@@ -31,9 +31,9 @@ class Settings(BaseSettings):
     uvicorn_proxy_headers: bool = True
 
     # processing server settings
-    remote_server_ip: str = ""
-    remote_server_username: str = ""
-    remote_server_password: str = ""
+    processing_server_ip: str = ""
+    processing_server_username: str = ""
+    processing_server_password: str = ""
 
     # supabase settings
     processor_username: str = "processor@deadtrees.earth"
