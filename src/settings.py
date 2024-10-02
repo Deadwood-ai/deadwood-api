@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     uvicorn_root_path: str = ""
     uvicorn_proxy_headers: bool = True
 
+    # processing server settings
+    remote_server_ip: str = ""
+    remote_server_username: str = ""
+    remote_server_password: str = ""
+
     # supabase settings
     processor_username: str = "processor@deadtrees.earth"
     processor_password: str = "processor"

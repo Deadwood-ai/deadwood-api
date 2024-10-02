@@ -1,5 +1,6 @@
 from pathlib import Path
 import time
+import paramiko
 
 from .supabase import use_client, login
 from .settings import settings
@@ -7,6 +8,34 @@ from .models import StatusEnum, Dataset, QueueTask, Cog
 from .logger import logger
 from . import monitoring
 from .deadwood.cog import calculate_cog
+
+
+def copy_pull_file_from_remote(remote_file_path: str, local_file_path: str):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(
+        settings.processing_server_ip,
+        settings.processing_server_username,
+        settings.processing_server_password,
+    )
+    sftp = ssh.open_sftp()
+    sftp.get(remote_file_path, local_file_path)
+    sftp.close()
+    ssh.close()
+
+
+def copy_push_file_to_remote(local_file_path: str, remote_file_path: str):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(
+        settings.processing_server_ip,
+        settings.processing_server_username,
+        settings.processing_server_password,
+    )
+    sftp = ssh.open_sftp()
+    sftp.put(local_file_path, remote_file_path)
+    sftp.close()
+    ssh.close()
 
 
 def update_status(token: str, dataset_id: int, status: StatusEnum):
@@ -18,37 +47,53 @@ def update_status(token: str, dataset_id: int, status: StatusEnum):
         status (StatusEnum): The current status of the cog calculation process to set the dataset to
     """
     with use_client(token) as client:
-        client.table(settings.datasets_table).update({
-            'status': status.value,
-        }).eq('id', dataset_id).execute()
+        client.table(settings.datasets_table).update(
+            {
+                "status": status.value,
+            }
+        ).eq("id", dataset_id).execute()
 
 
 def process_cog(task: QueueTask):
     """Function to calculate a cloud optimized geotiff (cog) for the current QueueTask.
-    Connects to the supabase metadata database, keeps the status up to date during the 
+    Connects to the supabase metadata database, keeps the status up to date during the
     process, executes the calculate_cog function to calculate the cog and logs
-    any potential errors during the process. In the end it will upload the cog and 
+    any potential errors during the process. In the end it will upload the cog and
     update prometheus to monitor the cog proccessing.
 
     Args:
         task (QueueTask): A QueueTask task containing all the required info for the cog processing
     """
     # login with the processor
-    token = login(settings.processor_username, settings.processor_password).session.access_token
+    token = login(
+        settings.processor_username, settings.processor_password
+    ).session.access_token
 
     # load the dataset
     try:
         with use_client(token) as client:
             # filter using the given dataset_id
-            response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
-            
+            response = (
+                client.table(settings.datasets_table)
+                .select("*")
+                .eq("id", task.dataset_id)
+                .execute()
+            )
+
             # create the dataset
             dataset = Dataset(**response.data[0])
     except Exception as e:
         # log the error to the database
         msg = f"PROCESSOR error loading dataset {task.dataset_id}: {str(e)}"
-        logger.error(msg, extra={"token": token, "user_id": task.user_id, "dataset_id": task.dataset_id})
-    
+        logger.error(
+            msg,
+            extra={
+                "token": token,
+                "user_id": task.user_id,
+                "dataset_id": task.dataset_id,
+            },
+        )
+
     # update the status to processing
     update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
 
@@ -72,15 +117,17 @@ def process_cog(task: QueueTask):
     t1 = time.time()
     try:
         info = calculate_cog(
-            str(input_path), 
-            str(output_path), 
-            profile=options.profile, 
+            str(input_path),
+            str(output_path),
+            profile=options.profile,
             quality=options.quality,
             skip_recreate=not options.force_recreate,
-            tiling_scheme=options.tiling_scheme
-
+            tiling_scheme=options.tiling_scheme,
         )
-        logger.info(f"COG profile returned for dataset {dataset.id}: {info}", extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id})
+        logger.info(
+            f"COG profile returned for dataset {dataset.id}: {info}",
+            extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        )
     except Exception as e:
         msg = f"Error processing COG for dataset {dataset.id}: {str(e)}"
 
@@ -88,16 +135,19 @@ def process_cog(task: QueueTask):
         update_status(token, dataset.id, StatusEnum.errored)
 
         # log the error to the database
-        logger.error(msg, extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id})
+        logger.error(
+            msg,
+            extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id},
+        )
         return
-    
+
     # get the size of the output file
     pass
     # stop the timer
     t2 = time.time()
 
-    # calcute number of overviews 
-    overviews = len(info.IFD) - 1 # since first IFD is the main image
+    # calcute number of overviews
+    overviews = len(info.IFD) - 1  # since first IFD is the main image
 
     # fill the metadata
     meta = dict(
@@ -111,7 +161,7 @@ def process_cog(task: QueueTask):
         compression=options.profile,
         overviews=overviews,
         tiling_scheme=options.tiling_scheme,
-        # !! This is not correct!! 
+        # !! This is not correct!!
         resolution=int(options.resolution * 100),
         blocksize=info.IFD[0].Blocksize[0],
     )
@@ -127,9 +177,16 @@ def process_cog(task: QueueTask):
         except Exception as e:
             msg = f"An error occured while trying to save the COG metadata for dataset {dataset.id}: {str(e)}"
 
-            logger.error(msg, extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id})
+            logger.error(
+                msg,
+                extra={
+                    "token": token,
+                    "user_id": task.user_id,
+                    "dataset_id": dataset.id,
+                },
+            )
             update_status(token, dataset.id, StatusEnum.errored)
-    
+
     # if there was no error, update the status
     update_status(token, dataset.id, StatusEnum.processed)
 
@@ -138,6 +195,7 @@ def process_cog(task: QueueTask):
     monitoring.cog_time.observe(cog.runtime)
     monitoring.cog_size.observe(cog.cog_size)
 
-    logger.info(f"Finished creating new COG <profile: {cog.compression}> for dataset {dataset.id}.", extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id})
-
-
+    logger.info(
+        f"Finished creating new COG <profile: {cog.compression}> for dataset {dataset.id}.",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+    )
