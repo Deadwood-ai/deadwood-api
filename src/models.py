@@ -64,9 +64,9 @@ class TaskPayload(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class QueueTask(TaskPayload):
-    estimated_time: float
+class QueueTask(BaseModel):
     current_position: int
+    estimated_time: float | None = None  # Make this field optional with a default of None
 
 
 class Dataset(BaseModel):

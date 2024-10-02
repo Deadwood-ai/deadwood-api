@@ -200,7 +200,7 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
         
         return HTTPException(status_code=500, detail=msg)
         
-    # load the current position assigned to this task
+    # Load the current position assigned to this task
     try:
         with use_client(token) as client:
             response = (
@@ -209,12 +209,19 @@ def create_cog(dataset_id: int, options: Optional[ProcessOptions], token: Annota
                 .eq('id', payload.id)
                 .execute()
             )
-            task = QueueTask(**response.data[0])
+            if response.data:
+                task_data = response.data[0]
+                # Handle the case where estimated_time might be None
+                task_data['estimated_time'] = task_data.get('estimated_time') or 0.0
+                task = QueueTask(**task_data)
+            else:
+                # Handle the case where no task data is found
+                logger.warning(f"No task position found for task ID {payload.id}", extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
+                task = QueueTask(id=payload.id, dataset_id=dataset_id, user_id=user.id, build_args=options, priority=2, is_processing=False, position=-1, estimated_time=0.0)
     except Exception as e:
-        # log the error to the database
+        # Log the error to the database
         msg = f"Error loading task position: {str(e)}"
         logger.error(msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id})
-        
         return HTTPException(status_code=500, detail=msg)
     
     # start the background task
