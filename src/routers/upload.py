@@ -8,7 +8,6 @@ import os
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
-from tempfile import NamedTemporaryFile
 
 
 from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum
@@ -45,12 +44,12 @@ def format_size(size: int) -> str:
         return f"{size / 1024**3:.2f} GB"
 
 
-async def combine_chunks(temp_dir: Path, total_chunks: int, filename: str) -> Path:
+async def combine_chunks(tmp_dir: Path, total_chunks: int, filename: str) -> Path:
     """Combine all chunks into a single file."""
-    combined_file = temp_dir / filename
+    combined_file = tmp_dir / filename
     with combined_file.open("wb") as outfile:
         for i in range(int(total_chunks)):
-            chunk_file = temp_dir / f"chunk_{i}"
+            chunk_file = tmp_dir / f"chunk_{i}"
             with chunk_file.open("rb") as infile:
                 outfile.write(infile.read())
     return combined_file
@@ -101,8 +100,8 @@ def create_dataset_entry(
 @router.post("/datasets/chunk")
 async def upload_geotiff_chunk(
     file: UploadFile,
-    chunk: Annotated[int, Form()],
-    chunks: Annotated[int, Form()],
+    chunk_index: Annotated[int, Form()],
+    chunks_total: Annotated[int, Form()],
     filename: Annotated[str, Form()],
     copy_time: Annotated[int, Form()],
     upload_id: Annotated[str, Form()],
@@ -120,18 +119,18 @@ async def upload_geotiff_chunk(
         raise HTTPException(status_code=401, detail="Invalid token")
 
     # Define the path for temporary chunk storage
-    temp_dir = Path(settings.tmp_upload_path) / upload_id
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(settings.tmp_upload_path) / upload_id
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the chunk
-    chunk_file = temp_dir / f"chunk_{chunk}"
+    chunk_file = tmp_dir / f"chunk_{chunk_index}"
     with chunk_file.open("wb") as buffer:
         content = await file.read()
         buffer.write(content)
 
     # If this is the last chunk, combine all chunks
-    if int(chunk) == int(chunks) - 1:
-        combined_file = await combine_chunks(temp_dir, chunks, filename)
+    if int(chunk_index) == int(chunks_total) - 1:
+        combined_file = await combine_chunks(tmp_dir, chunks_total, filename)
 
         # Process the combined file (similar to the original upload endpoint)
         uid = str(uuid.uuid4())
@@ -157,13 +156,13 @@ async def upload_geotiff_chunk(
         )
 
         # Clean up temporary files
-        for chunk_file in temp_dir.glob("chunk_*"):
+        for chunk_file in tmp_dir.glob("chunk_*"):
             chunk_file.unlink()
-        temp_dir.rmdir()
+        tmp_dir.rmdir()
 
         return dataset
 
-    return {"message": f"Chunk {chunk} of {chunks} received"}
+    return {"message": f"Chunk {chunk_index} of {chunks_total} received"}
 
 
 # Main routes for the logic
