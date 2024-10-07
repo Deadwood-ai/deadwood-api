@@ -266,7 +266,7 @@ def create_cog(
                     build_args=options,
                     priority=2,
                     is_processing=False,
-                    position=-1,
+                    current_position=-1,
                     estimated_time=0.0,
                 )
     except Exception as e:
@@ -285,7 +285,7 @@ def create_cog(
 
 
 @router.put("/datasets/{dataset_id}/process")
-async def create_processing_task(
+def create_processing_task(
     dataset_id: int,
     token: Annotated[str, Depends(oauth2_scheme)],
     options: Optional[ProcessOptions] = None,
@@ -342,17 +342,67 @@ async def create_processing_task(
                 if v is not None and k != "id"
             }
             response = client.table(settings.queue_table).insert(send_data).execute()
-            task = QueueTask(**response.data[0])
+            task = TaskPayload(**response.data[0])
 
         logger.info(
             f"Added {task_type} task for dataset {dataset_id} to queue.",
             extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
         )
 
-        return task
-
     except Exception as e:
         msg = f"Error adding {task_type} task to queue: {str(e)}"
+        logger.error(
+            msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id}
+        )
+        return HTTPException(status_code=500, detail=msg)
+
+    # Load the current position assigned to this task
+    try:
+        with use_client(token) as client:
+            response = (
+                client.table(settings.queue_position_table)
+                .select("*")
+                .eq("id", task.id)
+                .execute()
+            )
+            if response.data:
+                task_data = response.data[0]
+                # Handle the case where estimated_time might be None
+                task_data["estimated_time"] = task_data.get("estimated_time") or 0.0
+                task = QueueTask(**task_data)
+                logger.info(
+                    f"Loaded task position for task ID {task.id}",
+                    extra={
+                        "token": token,
+                        "user_id": user.id,
+                        "dataset_id": dataset_id,
+                    },
+                )
+                return task
+            else:
+                # Handle the case where no task data is found
+                logger.warning(
+                    f"No task position found for task ID {payload.id}",
+                    extra={
+                        "token": token,
+                        "user_id": user.id,
+                        "dataset_id": dataset_id,
+                    },
+                )
+                task = QueueTask(
+                    id=payload.id,
+                    dataset_id=dataset_id,
+                    user_id=user.id,
+                    build_args=options,
+                    priority=2,
+                    is_processing=False,
+                    current_position=-1,
+                    estimated_time=0.0,
+                )
+
+                return task
+    except Exception as e:
+        msg = f"Error loading task position: {str(e)}"
         logger.error(
             msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id}
         )

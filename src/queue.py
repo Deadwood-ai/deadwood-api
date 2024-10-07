@@ -60,7 +60,6 @@ def get_next_task(token: str) -> QueueTask:
         response = (
             client.table(settings.queue_position_table).select("*").limit(1).execute()
         )
-
     if not response.data or len(response.data) == 0:
         return None
     return QueueTask(**response.data[0])
