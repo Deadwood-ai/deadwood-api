@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     thumbnails_dir: str = "thumbnails"
 
     # Temporary processing directory
-    tmp_processing_path = Path(tempfile.mkdtemp(prefix="cog_processing_"))
+    tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix="cog_processing_")))
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None

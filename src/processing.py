@@ -15,10 +15,6 @@ from .deadwood.cog import calculate_cog
 from .deadwood.thumbnail import calculate_thumbnail
 
 
-def create_temp_dir():
-    return Path(tempfile.mkdtemp(dir=settings.tmp_processing_path))
-
-
 def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
     # Check if the file already exists locally
     if os.path.exists(local_file_path):
