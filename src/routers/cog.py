@@ -97,7 +97,7 @@ async def create_direct_cog(
         msg = f"Error processing COG for dataset {dataset.id}: {str(e)}"
 
         # set the status
-        update_status(token, dataset.id, StatusEnum.errored)
+        update_status(token, dataset.id, StatusEnum.cog_errored)
 
         # log the error to the database
         logger.error(
@@ -143,7 +143,7 @@ async def create_direct_cog(
                 msg,
                 extra={"token": token, "user_id": user.id, "dataset_id": dataset.id},
             )
-            update_status(token, dataset.id, StatusEnum.errored)
+            update_status(token, dataset.id, StatusEnum.cog_errored)
 
     # if there was no error, update the status
     update_status(token, dataset.id, StatusEnum.processed)
