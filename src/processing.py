@@ -3,6 +3,8 @@ import time
 import paramiko
 import os
 import base64
+import tempfile
+import shutil
 
 from .supabase import use_client, login
 from .settings import settings
@@ -11,6 +13,10 @@ from .logger import logger
 from . import monitoring
 from .deadwood.cog import calculate_cog
 from .deadwood.thumbnail import calculate_thumbnail
+
+
+def create_temp_dir():
+    return Path(tempfile.mkdtemp(dir=settings.tmp_processing_path))
 
 
 def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
@@ -94,63 +100,38 @@ def update_status(token: str, dataset_id: int, status: StatusEnum):
         ).eq("id", dataset_id).execute()
 
 
-def process_cog(task: QueueTask):
-    """Function to calculate a cloud optimized geotiff (cog) for the current QueueTask.
-    Connects to the supabase metadata database, keeps the status up to date during the
-    process, executes the calculate_cog function to calculate the cog and logs
-    any potential errors during the process. In the end it will upload the cog and
-    update prometheus to monitor the cog proccessing.
-
-    Args:
-        task (QueueTask): A QueueTask task containing all the required info for the cog processing
-    """
+def process_cog(task: QueueTask, temp_dir: Path):
     # login with the processor
     token = login(
         settings.processor_username, settings.processor_password
     ).session.access_token
 
     # load the dataset
-    try:
-        with use_client(token) as client:
-            # filter using the given dataset_id
-            response = (
-                client.table(settings.datasets_table)
-                .select("*")
-                .eq("id", task.dataset_id)
-                .execute()
-            )
-
-            # create the dataset
-            dataset = Dataset(**response.data[0])
-    except Exception as e:
-        # log the error to the database
-        msg = f"PROCESSOR error loading dataset {task.dataset_id}: {str(e)}"
-        logger.error(
-            msg,
-            extra={
-                "token": token,
-                "user_id": task.user_id,
-                "dataset_id": task.dataset_id,
-            },
+    with use_client(token) as client:
+        response = (
+            client.table(settings.datasets_table)
+            .select("*")
+            .eq("id", task.dataset_id)
+            .execute()
         )
+        dataset = Dataset(**response.data[0])
 
     # update the status to processing
     update_status(token, dataset_id=dataset.id, status=StatusEnum.cog_processing)
 
     # get local file path
-    input_path = settings.archive_path / dataset.file_name
+    input_path = temp_dir / dataset.file_name
 
     # get the remote file path
     storage_server_file_path = (
         f"{settings.storage_server_data_path}/archive/{dataset.file_name}"
     )
-    local_file_path = f"{settings.archive_path}/{dataset.file_name}"
 
     # pull the file from the storage server
     logger.info(
-        f"Pulling file from storage server: {storage_server_file_path} to {local_file_path}"
+        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
     )
-    pull_file_from_storage_server(storage_server_file_path, str(local_file_path))
+    pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
     # get the options
     options = task.build_args
@@ -159,43 +140,22 @@ def process_cog(task: QueueTask):
     cog_folder = Path(dataset.file_name).stem
     file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
 
-    # output path is the cog folder, then a folder for the dataset, then the cog file
-    output_path = settings.cog_path / cog_folder / file_name
-
-    # crete if not exists
-    if not output_path.parent.exists():
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+    # output path is in the temporary directory
+    output_path = temp_dir / file_name
 
     t1 = time.time()
-    try:
-        info = calculate_cog(
-            str(input_path),
-            str(output_path),
-            profile=options.profile,
-            quality=options.quality,
-            skip_recreate=not options.force_recreate,
-            tiling_scheme=options.tiling_scheme,
-        )
-        logger.info(
-            f"COG profile returned for dataset {dataset.id}: {info}",
-            extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
-        )
-    except Exception as e:
-        msg = f"Error processing COG for dataset {dataset.id}: {str(e)}"
-
-        # set the status
-        update_status(token, dataset.id, StatusEnum.cog_errored)
-
-        # log the error to the database
-        logger.error(
-            msg,
-            extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id},
-        )
-        return
-
-    # get the size of the output file
-    pass
-    # stop the timer
+    info = calculate_cog(
+        str(input_path),
+        str(output_path),
+        profile=options.profile,
+        quality=options.quality,
+        skip_recreate=not options.force_recreate,
+        tiling_scheme=options.tiling_scheme,
+    )
+    logger.info(
+        f"COG profile returned for dataset {dataset.id}: {info}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+    )
 
     # push the file to the storage server
     storage_server_cog_path = (
@@ -208,7 +168,7 @@ def process_cog(task: QueueTask):
 
     t2 = time.time()
 
-    # calcute number of overviews
+    # calculate number of overviews
     overviews = len(info.IFD) - 1  # since first IFD is the main image
 
     # fill the metadata
@@ -223,7 +183,6 @@ def process_cog(task: QueueTask):
         compression=options.profile,
         overviews=overviews,
         tiling_scheme=options.tiling_scheme,
-        # !! This is not correct!!
         resolution=int(options.resolution * 100),
         blocksize=info.IFD[0].Blocksize[0],
     )
@@ -232,24 +191,10 @@ def process_cog(task: QueueTask):
     cog = Cog(**meta)
 
     with use_client(token) as client:
-        try:
-            # filter out the None data
-            send_data = {k: v for k, v in cog.model_dump().items() if v is not None}
-            response = client.table(settings.cogs_table).upsert(send_data).execute()
-        except Exception as e:
-            msg = f"An error occured while trying to save the COG metadata for dataset {dataset.id}: {str(e)}"
+        send_data = {k: v for k, v in cog.model_dump().items() if v is not None}
+        client.table(settings.cogs_table).upsert(send_data).execute()
 
-            logger.error(
-                msg,
-                extra={
-                    "token": token,
-                    "user_id": task.user_id,
-                    "dataset_id": dataset.id,
-                },
-            )
-            update_status(token, dataset.id, StatusEnum.cog_errored)
-
-    # if there was no error, update the status
+    # If we reach here, processing was successful
     update_status(token, dataset.id, StatusEnum.processed)
 
     # monitoring
@@ -263,83 +208,47 @@ def process_cog(task: QueueTask):
     )
 
 
-def process_thumbnail(task: QueueTask):
-    """Function to generate a thumbnail for the current QueueTask.
-    Connects to the supabase metadata database, keeps the status up to date during the
-    process, executes the calculate_thumbnail function to generate the thumbnail and logs
-    any potential errors during the process. In the end it will upload the thumbnail and
-    update prometheus to monitor the thumbnail generation.
-
-    Args:
-        task (QueueTask): A QueueTask task containing all the required info for the thumbnail processing
-    """
+def process_thumbnail(task: QueueTask, temp_dir: Path):
     # login with the processor
     token = login(
         settings.processor_username, settings.processor_password
     ).session.access_token
 
     # load the dataset
-    try:
-        with use_client(token) as client:
-            response = (
-                client.table(settings.datasets_table)
-                .select("*")
-                .eq("id", task.dataset_id)
-                .execute()
-            )
-            dataset = Dataset(**response.data[0])
-    except Exception as e:
-        msg = f"PROCESSOR error loading dataset {task.dataset_id}: {str(e)}"
-        logger.error(
-            msg,
-            extra={
-                "token": token,
-                "user_id": task.user_id,
-                "dataset_id": task.dataset_id,
-            },
+    with use_client(token) as client:
+        response = (
+            client.table(settings.datasets_table)
+            .select("*")
+            .eq("id", task.dataset_id)
+            .execute()
         )
-        return
+        dataset = Dataset(**response.data[0])
 
     # update the status to processing
     update_status(token, dataset_id=dataset.id, status=StatusEnum.thumbnail_processing)
 
-    # get local file path
-    input_path = settings.archive_path / dataset.file_name
+    # get local file paths
+    input_path = temp_dir / dataset.file_name
+    thumbnail_file_name = dataset.file_name.replace(".tif", ".jpg")
+    output_path = temp_dir / thumbnail_file_name
 
     # get the remote file path
     storage_server_file_path = (
         f"{settings.storage_server_data_path}/archive/{dataset.file_name}"
     )
-    local_file_path = f"{settings.archive_path}/{dataset.file_name}"
 
     # pull the file from the storage server
     logger.info(
-        f"Pulling file from storage server: {storage_server_file_path} to {local_file_path}"
+        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
     )
-    pull_file_from_storage_server(storage_server_file_path, str(local_file_path))
-
-    # get the output settings
-    thumbnail_file_name = f"{dataset.id}_thumbnail.jpg"
-    output_path = settings.thumbnail_path / thumbnail_file_name
-
-    # create directory if not exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
     t1 = time.time()
-    try:
-        calculate_thumbnail(str(input_path), str(output_path))
-        logger.info(
-            f"Thumbnail generated for dataset {dataset.id}",
-            extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
-        )
-    except Exception as e:
-        msg = f"Error generating thumbnail for dataset {dataset.id}: {str(e)}"
-        update_status(token, dataset.id, StatusEnum.thumbnail_errored)
-        logger.error(
-            msg,
-            extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id},
-        )
-        return
+    calculate_thumbnail(str(input_path), str(output_path))
+    logger.info(
+        f"Thumbnail generated for dataset {dataset.id}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+    )
 
     # push the file to the storage server
     storage_server_thumbnail_path = (
@@ -355,44 +264,36 @@ def process_thumbnail(task: QueueTask):
     # fill the metadata
     meta = dict(
         dataset_id=dataset.id,
-        thumbnail_name=thumbnail_file_name,
-        thumbnail_url=f"thumbnails/{thumbnail_file_name}",
+        user_id=task.user_id,
+        thumbnail_path=thumbnail_file_name,
         thumbnail_size=output_path.stat().st_size,
         runtime=t2 - t1,
-        user_id=task.user_id,
     )
 
     # save the metadata to the database
-    thumbnail = Thumbnail(**meta)
-
     with use_client(token) as client:
-        try:
-            send_data = {
-                k: v for k, v in thumbnail.model_dump().items() if v is not None
-            }
-            response = (
-                client.table(settings.thumbnail_table).upsert(send_data).execute()
-            )
-        except Exception as e:
-            msg = f"An error occurred while trying to save the thumbnail metadata for dataset {dataset.id}: {str(e)}"
-            logger.error(
-                msg,
-                extra={
-                    "token": token,
-                    "user_id": task.user_id,
-                    "dataset_id": dataset.id,
-                },
-            )
-            update_status(token, dataset.id, StatusEnum.thumbnail_errored)
-            return
+        # check if thumbnail already exists, delete it
+        response = (
+            client.table(settings.thumbnail_table)
+            .select("*")
+            .eq("dataset_id", dataset.id)
+            .execute()
+        )
+        if len(response.data) > 0:
+            client.table(settings.thumbnail_table).delete().eq(
+                "dataset_id", dataset.id
+            ).execute()
 
-    # if there was no error, update the status
+        # insert new thumbnail data
+        client.table(settings.thumbnail_table).insert(meta).execute()
+
+    # If we reach here, processing was successful
     update_status(token, dataset.id, StatusEnum.thumbnail_processed)
 
     # monitoring
     monitoring.thumbnail_counter.inc()
-    monitoring.thumbnail_time.observe(thumbnail.runtime)
-    monitoring.thumbnail_size.observe(thumbnail.thumbnail_size)
+    monitoring.thumbnail_time.observe(meta["runtime"])
+    monitoring.thumbnail_size.observe(meta["thumbnail_size"])
 
     logger.info(
         f"Finished creating thumbnail for dataset {dataset.id}.",

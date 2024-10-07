@@ -282,3 +282,78 @@ def create_cog(
 
     # return the task
     return task
+
+
+@router.put("/datasets/{dataset_id}/process")
+async def create_processing_task(
+    dataset_id: int,
+    token: Annotated[str, Depends(oauth2_scheme)],
+    options: Optional[ProcessOptions] = None,
+    task_type: str = "cog",  # New parameter, default to "cog" for backward compatibility
+):
+    # Verify the token
+    user = verify_token(token)
+    if not user:
+        return HTTPException(status_code=401, detail="Invalid token")
+
+    # Validate task_type
+    if task_type not in ["cog", "thumbnail", "all"]:
+        return HTTPException(
+            status_code=400,
+            detail="Invalid task type. Must be 'cog', 'thumbnail', or 'all'.",
+        )
+
+    # Load the dataset info
+    try:
+        with use_client(token) as client:
+            response = (
+                client.table(settings.datasets_table)
+                .select("*")
+                .eq("id", dataset_id)
+                .execute()
+            )
+            if not response.data:
+                return HTTPException(
+                    status_code=404, detail=f"Dataset <ID={dataset_id}> not found."
+                )
+    except Exception as e:
+        msg = f"Error loading dataset {dataset_id}: {str(e)}"
+        logger.error(
+            msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id}
+        )
+        return HTTPException(status_code=500, detail=msg)
+
+    # Create the task payload
+    payload = TaskPayload(
+        dataset_id=dataset_id,
+        user_id=user.id,
+        build_args=options or ProcessOptions(),
+        task_type=task_type,
+        priority=2,
+        is_processing=False,
+    )
+
+    # Add the task to the queue
+    try:
+        with use_client(token) as client:
+            send_data = {
+                k: v
+                for k, v in payload.model_dump().items()
+                if v is not None and k != "id"
+            }
+            response = client.table(settings.queue_table).insert(send_data).execute()
+            task = QueueTask(**response.data[0])
+
+        logger.info(
+            f"Added {task_type} task for dataset {dataset_id} to queue.",
+            extra={"token": token, "dataset_id": dataset_id, "user_id": user.id},
+        )
+
+        return task
+
+    except Exception as e:
+        msg = f"Error adding {task_type} task to queue: {str(e)}"
+        logger.error(
+            msg, extra={"token": token, "user_id": user.id, "dataset_id": dataset_id}
+        )
+        return HTTPException(status_code=500, detail=msg)

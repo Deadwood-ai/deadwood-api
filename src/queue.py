@@ -1,4 +1,7 @@
 from threading import Timer
+import shutil
+import tempfile
+from pathlib import Path
 
 from .models import QueueTask
 from .settings import settings
@@ -64,28 +67,27 @@ def get_next_task(token: str) -> QueueTask:
 
 
 def process_task(task: QueueTask, token: str):
-    # mark this task as processing
-    with use_client(token) as client:
-        client.table(settings.queue_table).update({"is_processing": True}).eq(
-            "id", task.id
-        ).execute()
-
     try:
-        if task.task_type == "cog":
-            process_cog(task)
-        elif task.task_type == "thumbnail":
-            process_thumbnail(task)
-        elif task.task_type == "all":
-            process_cog(task)
-            process_thumbnail(task)
-        else:
-            raise ValueError(f"Unknown task type: {task.task_type}")
+        # mark this task as processing
+        with use_client(token) as client:
+            client.table(settings.queue_table).update({"is_processing": True}).eq(
+                "id", task.id
+            ).execute()
+
+        if task.task_type in ["cog", "all"]:
+            process_cog(task, settings.tmp_processing_path)
+
+        if task.task_type in ["thumbnail", "all"]:
+            process_thumbnail(task, settings.tmp_processing_path)
 
     except Exception as e:
         # log the error to the database
         msg = f"PROCESSOR error processing task {task.id}: {str(e)}"
         logger.error(msg, extra={"token": token, "task_id": task.id})
     finally:
+        # unlik temp folder
+        shutil.rmtree(settings.tmp_processing_path)
+
         # delete the task from the queue in any case
         with use_client(token) as client:
             client.table(settings.queue_table).delete().eq("id", task.id).execute()

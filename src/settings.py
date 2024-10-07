@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from pathlib import Path
+import tempfile
 
 # load an .env file if it exists
 load_dotenv()
@@ -19,6 +20,9 @@ class Settings(BaseSettings):
     archive_dir: str = "archive"
     cog_dir: str = "cogs"
     thumbnails_dir: str = "thumbnails"
+
+    # Temporary processing directory
+    tmp_processing_path = Path(tempfile.mkdtemp(prefix="cog_processing_"))
 
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None

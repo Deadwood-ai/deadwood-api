@@ -58,6 +58,12 @@ class ProcessOptions(BaseSettings):
     tiling_scheme: Optional[str] = "web-optimized"
 
 
+class TaskTypeEnum(str, Enum):
+    cog = "cog"
+    thumbnail = "thumbnail"
+    all = "all"
+
+
 class TaskPayload(BaseModel):
     id: Optional[int] = None
     dataset_id: int
@@ -66,17 +72,19 @@ class TaskPayload(BaseModel):
     build_args: ProcessOptions = ProcessOptions()
     is_processing: bool = False
     created_at: Optional[datetime] = None
+    task_type: TaskTypeEnum
 
 
 class QueueTask(BaseModel):
     id: int
     dataset_id: int
-    user_id: str  # Make sure this field is present
+    user_id: str
     build_args: ProcessOptions
     priority: int
     is_processing: bool
     current_position: int
     estimated_time: float | None = None
+    task_type: TaskTypeEnum  # 'cog', 'thumbnail', or 'all'
 
 
 class Dataset(BaseModel):
