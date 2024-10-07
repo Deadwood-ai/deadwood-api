@@ -3,7 +3,7 @@ from threading import Timer
 from .models import QueueTask
 from .settings import settings
 from .supabase import use_client, login
-from .processing import process_cog
+from .processing import process_cog, process_thumbnail
 from .logger import logger
 
 
@@ -64,23 +64,22 @@ def get_next_task(token: str) -> QueueTask:
 
 
 def process_task(task: QueueTask, token: str):
-    """Calculates the COG for a QueueTask and removes the task from the queue when finished succesfully.
-    Logs any error in the logger in case of an unexpected exception.
-
-    Args:
-        task (QueueTask):  Task from the processing queue as a QueueTask class instance
-        token (str): Client access token for supabase
-    """
-
     # mark this task as processing
     with use_client(token) as client:
         client.table(settings.queue_table).update({"is_processing": True}).eq(
             "id", task.id
         ).execute()
 
-    # Do the main processing here
     try:
-        process_cog(task)
+        if task.task_type == "cog":
+            process_cog(task)
+        elif task.task_type == "thumbnail":
+            process_thumbnail(task)
+        elif task.task_type == "all":
+            process_cog(task)
+            process_thumbnail(task)
+        else:
+            raise ValueError(f"Unknown task type: {task.task_type}")
 
     except Exception as e:
         # log the error to the database

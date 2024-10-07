@@ -2,13 +2,15 @@ from pathlib import Path
 import time
 import paramiko
 import os
+import base64
 
 from .supabase import use_client, login
 from .settings import settings
-from .models import StatusEnum, Dataset, QueueTask, Cog
+from .models import StatusEnum, Dataset, QueueTask, Cog, Thumbnail
 from .logger import logger
 from . import monitoring
 from .deadwood.cog import calculate_cog
+from .deadwood.thumbnail import calculate_thumbnail
 
 
 def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
@@ -257,5 +259,142 @@ def process_cog(task: QueueTask):
 
     logger.info(
         f"Finished creating new COG <profile: {cog.compression}> for dataset {dataset.id}.",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+    )
+
+
+def process_thumbnail(task: QueueTask):
+    """Function to generate a thumbnail for the current QueueTask.
+    Connects to the supabase metadata database, keeps the status up to date during the
+    process, executes the calculate_thumbnail function to generate the thumbnail and logs
+    any potential errors during the process. In the end it will upload the thumbnail and
+    update prometheus to monitor the thumbnail generation.
+
+    Args:
+        task (QueueTask): A QueueTask task containing all the required info for the thumbnail processing
+    """
+    # login with the processor
+    token = login(
+        settings.processor_username, settings.processor_password
+    ).session.access_token
+
+    # load the dataset
+    try:
+        with use_client(token) as client:
+            response = (
+                client.table(settings.datasets_table)
+                .select("*")
+                .eq("id", task.dataset_id)
+                .execute()
+            )
+            dataset = Dataset(**response.data[0])
+    except Exception as e:
+        msg = f"PROCESSOR error loading dataset {task.dataset_id}: {str(e)}"
+        logger.error(
+            msg,
+            extra={
+                "token": token,
+                "user_id": task.user_id,
+                "dataset_id": task.dataset_id,
+            },
+        )
+        return
+
+    # update the status to processing
+    update_status(token, dataset_id=dataset.id, status=StatusEnum.thumbnail_processing)
+
+    # get local file path
+    input_path = settings.archive_path / dataset.file_name
+
+    # get the remote file path
+    storage_server_file_path = (
+        f"{settings.storage_server_data_path}/archive/{dataset.file_name}"
+    )
+    local_file_path = f"{settings.archive_path}/{dataset.file_name}"
+
+    # pull the file from the storage server
+    logger.info(
+        f"Pulling file from storage server: {storage_server_file_path} to {local_file_path}"
+    )
+    pull_file_from_storage_server(storage_server_file_path, str(local_file_path))
+
+    # get the output settings
+    thumbnail_file_name = f"{dataset.id}_thumbnail.jpg"
+    output_path = settings.thumbnail_path / thumbnail_file_name
+
+    # create directory if not exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    t1 = time.time()
+    try:
+        calculate_thumbnail(str(input_path), str(output_path))
+        logger.info(
+            f"Thumbnail generated for dataset {dataset.id}",
+            extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        )
+    except Exception as e:
+        msg = f"Error generating thumbnail for dataset {dataset.id}: {str(e)}"
+        update_status(token, dataset.id, StatusEnum.thumbnail_errored)
+        logger.error(
+            msg,
+            extra={"token": token, "user_id": task.user_id, "dataset_id": dataset.id},
+        )
+        return
+
+    # push the file to the storage server
+    storage_server_thumbnail_path = (
+        f"{settings.storage_server_data_path}/thumbnails/{thumbnail_file_name}"
+    )
+    logger.info(
+        f"Pushing file to storage server: {output_path} to {storage_server_thumbnail_path}"
+    )
+    push_file_to_storage_server(str(output_path), storage_server_thumbnail_path)
+
+    t2 = time.time()
+
+    # fill the metadata
+    meta = dict(
+        dataset_id=dataset.id,
+        thumbnail_name=thumbnail_file_name,
+        thumbnail_url=f"thumbnails/{thumbnail_file_name}",
+        thumbnail_size=output_path.stat().st_size,
+        runtime=t2 - t1,
+        user_id=task.user_id,
+    )
+
+    # save the metadata to the database
+    thumbnail = Thumbnail(**meta)
+
+    with use_client(token) as client:
+        try:
+            send_data = {
+                k: v for k, v in thumbnail.model_dump().items() if v is not None
+            }
+            response = (
+                client.table(settings.thumbnail_table).upsert(send_data).execute()
+            )
+        except Exception as e:
+            msg = f"An error occurred while trying to save the thumbnail metadata for dataset {dataset.id}: {str(e)}"
+            logger.error(
+                msg,
+                extra={
+                    "token": token,
+                    "user_id": task.user_id,
+                    "dataset_id": dataset.id,
+                },
+            )
+            update_status(token, dataset.id, StatusEnum.thumbnail_errored)
+            return
+
+    # if there was no error, update the status
+    update_status(token, dataset.id, StatusEnum.thumbnail_processed)
+
+    # monitoring
+    monitoring.thumbnail_counter.inc()
+    monitoring.thumbnail_time.observe(thumbnail.runtime)
+    monitoring.thumbnail_size.observe(thumbnail.thumbnail_size)
+
+    logger.info(
+        f"Finished creating thumbnail for dataset {dataset.id}.",
         extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
     )
