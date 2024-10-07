@@ -27,6 +27,8 @@ class LicenseEnum(str, Enum):
 
 class StatusEnum(str, Enum):
     pending = "pending"
+    processing = "processing"
+    errored = "errored"
     cog_processing = "cog_processing"
     cog_errored = "errored"
     thumbnail_processing = "thumbnail_processing"
