@@ -114,9 +114,10 @@ def process_cog(task: QueueTask, temp_dir: Path):
 
     # update the status to processing
     update_status(token, dataset_id=dataset.id, status=StatusEnum.cog_processing)
+    print("running cog")
 
     # get local file path
-    input_path = temp_dir / dataset.file_name
+    input_path = Path(temp_dir) / dataset.file_name
 
     # get the remote file path
     storage_server_file_path = (
@@ -137,7 +138,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
     file_name = f"{cog_folder}_cog_{options.profile}_ts_{options.tiling_scheme}_q{options.quality}.tif"
 
     # output path is in the temporary directory
-    output_path = temp_dir / file_name
+    output_path = Path(temp_dir) / file_name
 
     t1 = time.time()
     info = calculate_cog(
@@ -224,9 +225,9 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
     update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
 
     # get local file paths
-    input_path = temp_dir / dataset.file_name
+    input_path = Path(temp_dir) / dataset.file_name
     thumbnail_file_name = dataset.file_name.replace(".tif", ".jpg")
-    output_path = temp_dir / thumbnail_file_name
+    output_path = Path(temp_dir) / thumbnail_file_name
 
     # get the remote file path
     storage_server_file_path = (
@@ -240,6 +241,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
     pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
     t1 = time.time()
+    logger.info(f"Generating thumbnail for dataset {dataset.id}")
     calculate_thumbnail(str(input_path), str(output_path))
     logger.info(
         f"Thumbnail generated for dataset {dataset.id}",
@@ -285,11 +287,6 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
     # If we reach here, processing was successful
     update_status(token, dataset.id, StatusEnum.processed)
-
-    # monitoring
-    monitoring.thumbnail_counter.inc()
-    monitoring.thumbnail_time.observe(meta["runtime"])
-    monitoring.thumbnail_size.observe(meta["thumbnail_size"])
 
     logger.info(
         f"Finished creating thumbnail for dataset {dataset.id}.",

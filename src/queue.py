@@ -79,6 +79,10 @@ def process_task(task: QueueTask, token: str):
         if task.task_type in ["thumbnail", "all"]:
             process_thumbnail(task, settings.tmp_processing_path)
 
+        # delete the task from the queue if processing was successful
+        with use_client(token) as client:
+            client.table(settings.queue_table).delete().eq("id", task.id).execute()
+
     except Exception as e:
         # log the error to the database
         msg = f"PROCESSOR error processing task {task.id}: {str(e)}"
@@ -86,10 +90,6 @@ def process_task(task: QueueTask, token: str):
     finally:
         # unlik temp folder
         shutil.rmtree(settings.tmp_processing_path)
-
-        # delete the task from the queue in any case
-        with use_client(token) as client:
-            client.table(settings.queue_table).delete().eq("id", task.id).execute()
 
 
 def background_process():

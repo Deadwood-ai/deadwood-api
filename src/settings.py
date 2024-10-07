@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # queue settings
     queue_table: str = "v1_queue"
     queue_position_table: str = "v1_queue_positions"
-    concurrent_tasks: int = 1
+    concurrent_tasks: int = 2
     task_retry_delay: int = 60
 
     @property
