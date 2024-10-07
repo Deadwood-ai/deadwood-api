@@ -221,7 +221,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
         dataset = Dataset(**response.data[0])
 
     # update the status to processing
-    update_status(token, dataset_id=dataset.id, status=StatusEnum.thumbnail_processing)
+    update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
 
     # get local file paths
     input_path = temp_dir / dataset.file_name
@@ -262,9 +262,9 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
         dataset_id=dataset.id,
         user_id=task.user_id,
         thumbnail_path=thumbnail_file_name,
-        thumbnail_size=output_path.stat().st_size,
-        runtime=t2 - t1,
     )
+
+    thumbnail = Thumbnail(**meta)
 
     # save the metadata to the database
     with use_client(token) as client:
@@ -281,10 +281,10 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
             ).execute()
 
         # insert new thumbnail data
-        client.table(settings.thumbnail_table).insert(meta).execute()
+        client.table(settings.thumbnail_table).insert(thumbnail.model_dump()).execute()
 
     # If we reach here, processing was successful
-    update_status(token, dataset.id, StatusEnum.thumbnail_processed)
+    update_status(token, dataset.id, StatusEnum.processed)
 
     # monitoring
     monitoring.thumbnail_counter.inc()

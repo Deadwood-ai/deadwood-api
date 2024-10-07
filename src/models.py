@@ -87,6 +87,12 @@ class QueueTask(BaseModel):
     task_type: TaskTypeEnum  # 'cog', 'thumbnail', or 'all'
 
 
+class Thumbnail(BaseModel):
+    dataset_id: int
+    thumbnail_path: str
+    user_id: str
+
+
 class Dataset(BaseModel):
     """
     The Dataset class is the base class for each Dataset object in the database.
