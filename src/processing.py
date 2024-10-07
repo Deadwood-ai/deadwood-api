@@ -1,6 +1,7 @@
 from pathlib import Path
 import time
 import paramiko
+import os
 
 from .supabase import use_client, login
 from .settings import settings
@@ -11,28 +12,65 @@ from .deadwood.cog import calculate_cog
 
 
 def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
+    # Check if the file already exists locally
+    if os.path.exists(local_file_path):
+        print(f"File already exists locally at: {local_file_path}")
+        return
+
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
+    print(
+        "connecting to:",
         settings.storage_server_ip,
         settings.storage_server_username,
         settings.storage_server_password,
     )
+    ssh.connect(
+        hostname=settings.storage_server_ip,
+        username=settings.storage_server_username,
+        password=settings.storage_server_password,
+        port=22,  # Add this line to specify the default SSH port
+    )
+
     sftp = ssh.open_sftp()
+    print("pulling file: ", remote_file_path, "to", local_file_path)
+
+    # Create the directory for local_file_path if it doesn't exist
+    local_dir = Path(local_file_path).parent
+    local_dir.mkdir(parents=True, exist_ok=True)
+
     sftp.get(remote_file_path, local_file_path)
+    print("file pulled")
     sftp.close()
     ssh.close()
+
+    # Check if the file exists after pulling
+    if os.path.exists(local_file_path):
+        print(f"File successfully saved at: {local_file_path}")
+        print(f"File size: {os.path.getsize(local_file_path)} bytes")
+    else:
+        print(f"Error: File not found at {local_file_path} after pulling")
 
 
 def push_file_to_storage_server(local_file_path: str, remote_file_path: str):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(
-        settings.storage_server_ip,
-        settings.storage_server_username,
-        settings.storage_server_password,
+        hostname=settings.storage_server_ip,
+        username=settings.storage_server_username,
+        password=settings.storage_server_password,
+        port=22,  # Add this line to specify the default SSH port
     )
     sftp = ssh.open_sftp()
+    # Extract the remote directory path
+    remote_dir = os.path.dirname(remote_file_path)
+
+    try:
+        # Create the remote directory if it doesn't exist
+        sftp.mkdir(remote_dir)
+    except IOError:
+        # Directory might already exist, which is fine
+        pass
     sftp.put(local_file_path, remote_file_path)
     sftp.close()
     ssh.close()
@@ -95,7 +133,7 @@ def process_cog(task: QueueTask):
         )
 
     # update the status to processing
-    update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
+    update_status(token, dataset_id=dataset.id, status=StatusEnum.cog_processing)
 
     # get local file path
     input_path = settings.archive_path / dataset.file_name
@@ -104,12 +142,13 @@ def process_cog(task: QueueTask):
     storage_server_file_path = (
         f"{settings.storage_server_data_path}/archive/{dataset.file_name}"
     )
+    local_file_path = f"{settings.archive_path}/{dataset.file_name}"
 
     # pull the file from the storage server
     logger.info(
-        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
+        f"Pulling file from storage server: {storage_server_file_path} to {local_file_path}"
     )
-    pull_file_from_storage_server(storage_server_file_path, str(input_path))
+    pull_file_from_storage_server(storage_server_file_path, str(local_file_path))
 
     # get the options
     options = task.build_args

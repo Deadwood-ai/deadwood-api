@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    network_mode: host
     ports:
       - 8762:8762
     volumes:

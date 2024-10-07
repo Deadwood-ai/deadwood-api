@@ -4,7 +4,7 @@ FROM python:3.12.1
 # install GDAL and the matching pathon bindings
 # TODO: THIS IS QUICK AND DIRTY. This is only necessary, because utils subpackage uses the type annotations
 # of rasterio, which in turn needs GDAL to be present.
-RUN apt-get update && apt-get install -y gdal-bin libgdal-dev && \
+RUN apt-get update && apt-get install -y openssh-server gdal-bin libgdal-dev && \
     pip install --upgrade pip && \
     pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
 
