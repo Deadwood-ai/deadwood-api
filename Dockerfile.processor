@@ -24,4 +24,4 @@ WORKDIR /app
 
 # run the application
 #CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
-CMD ["python", "run.py", "server"]
+CMD ["python", "run.py", "start-queue"]

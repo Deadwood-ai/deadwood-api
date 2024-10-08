@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile.processor
     network_mode: host
-    ports:
-      - 8763:8763
     volumes:
       - ./data:/data
       - ./src:/app/src
@@ -27,5 +25,3 @@ services:
       LOGS_TABLE: ${LOGS_TABLE}
       PROCESSOR_USERNAME: processor@deadtrees.earth
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
-      UVICORN_PORT: 8763
-      UVICORN_HOST: 0.0.0.0
