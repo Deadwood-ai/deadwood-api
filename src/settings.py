@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     cogs_table: str = "v1_cogs"
     labels_table: str = "v1_labels"
     thumbnail_table: str = "v1_thumbnails"
+    logs_table: str = "logs"
 
     # queue settings
     queue_table: str = "v1_queue"

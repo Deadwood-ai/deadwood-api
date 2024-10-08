@@ -6,7 +6,9 @@ import base64
 import tempfile
 import shutil
 
-from .supabase import use_client, login
+from fastapi import HTTPException
+
+from .supabase import use_client, login, verify_token
 from .settings import settings
 from .models import StatusEnum, Dataset, QueueTask, Cog, Thumbnail
 from .logger import logger
@@ -102,7 +104,11 @@ def process_cog(task: QueueTask, temp_dir: Path):
         settings.processor_username, settings.processor_password
     ).session.access_token
 
-    # load the dataset
+    user = verify_token(token)
+    print("user is:", user)
+    if not user:
+        return HTTPException(status_code=401, detail="Invalid token")
+
     with use_client(token) as client:
         response = (
             client.table(settings.datasets_table)
@@ -126,7 +132,8 @@ def process_cog(task: QueueTask, temp_dir: Path):
 
     # pull the file from the storage server
     logger.info(
-        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
+        f"Pulling tiff from storage server: {storage_server_file_path} to {input_path}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
     pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
@@ -151,7 +158,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
     )
     logger.info(
         f"COG profile returned for dataset {dataset.id}: {info}",
-        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
 
     # push the file to the storage server
@@ -159,7 +166,8 @@ def process_cog(task: QueueTask, temp_dir: Path):
         f"{settings.storage_server_data_path}/cogs/{cog_folder}/{file_name}"
     )
     logger.info(
-        f"Pushing file to storage server: {output_path} to {storage_server_cog_path}"
+        f"Pushing cog to storage server: {output_path} to {storage_server_cog_path}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
     push_file_to_storage_server(str(output_path), storage_server_cog_path)
 
@@ -201,7 +209,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 
     logger.info(
         f"Finished creating new COG <profile: {cog.compression}> for dataset {dataset.id}.",
-        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
 
 
@@ -210,6 +218,11 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
     token = login(
         settings.processor_username, settings.processor_password
     ).session.access_token
+
+    user = verify_token(token)
+    print("user is:", user)
+    if not user:
+        return HTTPException(status_code=401, detail="Invalid token")
 
     # load the dataset
     with use_client(token) as client:
@@ -236,16 +249,16 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
     # pull the file from the storage server
     logger.info(
-        f"Pulling file from storage server: {storage_server_file_path} to {input_path}"
+        f"Pulling tiff from storage server: {storage_server_file_path} to {input_path}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
     pull_file_from_storage_server(storage_server_file_path, str(input_path))
 
     t1 = time.time()
-    logger.info(f"Generating thumbnail for dataset {dataset.id}")
     calculate_thumbnail(str(input_path), str(output_path))
     logger.info(
         f"Thumbnail generated for dataset {dataset.id}",
-        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
 
     # push the file to the storage server
@@ -253,7 +266,8 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
         f"{settings.storage_server_data_path}/thumbnails/{thumbnail_file_name}"
     )
     logger.info(
-        f"Pushing file to storage server: {output_path} to {storage_server_thumbnail_path}"
+        f"Pushing thumbnail to storage server: {output_path} to {storage_server_thumbnail_path}",
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
     push_file_to_storage_server(str(output_path), storage_server_thumbnail_path)
 
@@ -290,5 +304,5 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
     logger.info(
         f"Finished creating thumbnail for dataset {dataset.id}.",
-        extra={"token": token, "dataset_id": dataset.id, "user_id": task.user_id},
+        extra={"token": token, "dataset_id": dataset.id, "user_id": user.id},
     )
