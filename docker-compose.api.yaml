@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8762:8762
+    volumes:
+      - ./data:/data
+      - ./src:/app/src
+    environment:
+      BASE_DIR: /data
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      STORAGE_SERVER_IP: ${STORAGE_SERVER_IP}
+      STORAGE_SERVER_USERNAME: ${STORAGE_SERVER_USERNAME}
+      STORAGE_SERVER_PASSWORD: ${STORAGE_SERVER_PASSWORD}
+      STORAGE_SERVER_DATA_PATH: ${STORAGE_SERVER_DATA_PATH}
+      THUMBNAIL_TABLE: ${THUMBNAIL_TABLE}
+      DATASETS_TABLE: ${DATASETS_TABLE}
+      METADATA_TABLE: ${METADATA_TABLE}
+      COGS_TABLE: ${COGS_TABLE}
+      LABELS_TABLE: ${LABELS_TABLE}
+      QUEUE_TABLE: ${QUEUE_TABLE}
+      QUEUE_POSITION_TABLE: ${QUEUE_POSITION_TABLE}
+      LOGS_TABLE: ${LOGS_TABLE}
+      PROCESSOR_USERNAME: processor@deadtrees.earth
+      PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
+      UVICORN_PORT: 8762
+      UVICORN_HOST: 0.0.0.0
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    volumes:
+      - ./data:/data
+      - ./src:/app/src
+    links:
+      - api
+    command: echo "Run migration service as 'docker compose run --rm migrate bash'"
+    environment:
+      BASE_DIR: /data
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      PROCESSOR_USERNAME: processor@deadtrees.earth
+      PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
+      OLD_ARCHIVE_PATH: /data/to_migrate
+      API_URL: http://api:8762
+
+      # migration metadata
+      MIGRATION_TABLE: migrate_v1
