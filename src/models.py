@@ -130,12 +130,12 @@ class Dataset(BaseModel):
             s = raw_string.replace("BOX(", "").replace(")", "")
             ll, ur = s.split(",")
             left, bottom = ll.strip().split(" ")
-            right, upper = ur.strip().split(" ")
+            right, top = ur.strip().split(" ")
             return BoundingBox(
                 left=float(left),
                 bottom=float(bottom),
                 right=float(right),
-                top=float(upper),
+                top=float(top),
             )
         else:
             return raw_string
