@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from pathlib import Path
+import tempfile
 
 # load an .env file if it exists
 load_dotenv()
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     cog_dir: str = "cogs"
     thumbnails_dir: str = "thumbnails"
 
+    # Temporary processing directory
+    tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix="cog_processing_")))
+
     # supabase settings for supabase authentication
     supabase_url: Optional[str] = None
     supabase_key: Optional[str] = None
@@ -29,6 +33,12 @@ class Settings(BaseSettings):
     uvicorn_port: int = 8000
     uvicorn_root_path: str = ""
     uvicorn_proxy_headers: bool = True
+
+    # processing server settings
+    storage_server_ip: str = ""
+    storage_server_username: str = ""
+    storage_server_password: str = ""
+    storage_server_data_path: str = ""
 
     # supabase settings
     processor_username: str = "processor@deadtrees.earth"
@@ -40,6 +50,7 @@ class Settings(BaseSettings):
     cogs_table: str = "v1_cogs"
     labels_table: str = "v1_labels"
     thumbnail_table: str = "v1_thumbnails"
+    logs_table: str = "logs"
 
     # queue settings
     queue_table: str = "v1_queue"

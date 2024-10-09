@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     ports:
       - 8762:8762
     volumes:
@@ -12,20 +12,27 @@ services:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
-      DATASETS_TABLE: v1_datasets
-      METADATA_TABLE: v1_metadata
-      COGS_TABLE: v1_cogs
-      LABELS_TABLE: v1_labels
-      THUMBNAIL_BUCKET: v1_thumbnails
+      STORAGE_SERVER_IP: ${STORAGE_SERVER_IP}
+      STORAGE_SERVER_USERNAME: ${STORAGE_SERVER_USERNAME}
+      STORAGE_SERVER_PASSWORD: ${STORAGE_SERVER_PASSWORD}
+      STORAGE_SERVER_DATA_PATH: ${STORAGE_SERVER_DATA_PATH}
+      THUMBNAIL_TABLE: ${THUMBNAIL_TABLE}
+      DATASETS_TABLE: ${DATASETS_TABLE}
+      METADATA_TABLE: ${METADATA_TABLE}
+      COGS_TABLE: ${COGS_TABLE}
+      LABELS_TABLE: ${LABELS_TABLE}
+      QUEUE_TABLE: ${QUEUE_TABLE}
+      QUEUE_POSITION_TABLE: ${QUEUE_POSITION_TABLE}
+      LOGS_TABLE: ${LOGS_TABLE}
       PROCESSOR_USERNAME: processor@deadtrees.earth
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
-  
+
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     volumes:
       - ./data:/data
       - ./src:/app/src
