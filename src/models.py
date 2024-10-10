@@ -93,6 +93,7 @@ class Thumbnail(BaseModel):
 	dataset_id: int
 	thumbnail_path: str
 	user_id: str
+	runtime: float
 
 
 class Dataset(BaseModel):
