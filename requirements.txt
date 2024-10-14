@@ -13,3 +13,4 @@ fire
 overpy
 pillow
 geopandas
+paramiko
