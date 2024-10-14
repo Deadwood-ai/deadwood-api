@@ -37,13 +37,13 @@ class Settings(BaseSettings):
 	# processing server settings
 	storage_server_ip: str = ''
 	storage_server_username: str = ''
-	storage_server_password: str = ''
 	storage_server_data_path: str = ''
 
 	# supabase settings
 	processor_username: str = 'processor@deadtrees.earth'
 	processor_password: str = 'processor'
-
+	processor_pk_path: str = ''
+	processor_pk_passphrase: str = ''
 	# tabe names
 	datasets_table: str = 'v1_datasets'
 	metadata_table: str = 'v1_metadata'

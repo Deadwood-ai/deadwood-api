@@ -27,7 +27,8 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
 		ssh.connect(
 			hostname=settings.storage_server_ip,
 			username=settings.storage_server_username,
-			password=settings.storage_server_password,
+			key_filename=settings.processor_pk_path,
+			passphrase=settings.processor_pk_passphrase,
 			port=22,  # Add this line to specify the default SSH port
 		)
 
@@ -53,6 +54,8 @@ def push_file_to_storage_server(local_file_path: str, remote_file_path: str):
 		ssh.connect(
 			hostname=settings.storage_server_ip,
 			username=settings.storage_server_username,
+			key_filename=settings.processor_pk_path,
+			passphrase=settings.processor_pk_passphrase,
 			port=22,  # Add this line to specify the default SSH port
 		)
 		with ssh.open_sftp() as sftp:
