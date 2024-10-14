@@ -8,28 +8,29 @@ from .__version__ import __version__
 from .routers import cog, upload, info, auth, labels, thumbnail, download
 
 app = FastAPI(
-    title="Deadwood-AI API",
-    description="This is the Deadwood-AI API. It is used to manage files uploads to the Deadwood-AI backend and the preprocessing of uploads. Note that the download is managed by a sub-application at `/download/`.",
-    version=__version__,
+	title='Deadwood-AI API',
+	description='This is the Deadwood-AI API. It is used to manage files uploads to the Deadwood-AI backend and the preprocessing of uploads. Note that the download is managed by a sub-application at `/download/`.',
+	version=__version__,
 )
 
 # add CORS middleware
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['https://deadtrees.earth', 'https://www.deadtrees.earth'],
-    allow_origin_regex='https://deadwood-d4a4b.*|http://(127\\.0\\.0\\.1|localhost)(:\\d+)?',
-    allow_credentials=True,
-    allow_methods=['OPTIONS', 'GET', 'POST', 'PUT'],
-    allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
+	CORSMiddleware,
+	allow_origins=['https://deadtrees.earth', 'https://www.deadtrees.earth'],
+	allow_origin_regex='https://deadwood-d4a4b.*|http://(127\\.0\\.0\\.1|localhost)(:\\d+)?',
+	allow_credentials=True,
+	allow_methods=['OPTIONS', 'GET', 'POST', 'PUT'],
+	allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
 )
 
+
 # add the prometheus metrics route
-@app.get("/metrics")
+@app.get('/metrics')
 def get_metrics():
-    """
-    Supplys Prometheus metrics for the storage API.
-    """
-    return Response(prometheus_client.generate_latest(), media_type="text/plain")
+	"""
+	Supplys Prometheus metrics for the storage API.
+	"""
+	return Response(prometheus_client.generate_latest(), media_type='text/plain')
 
 
 # add the info route to the app
@@ -52,5 +53,5 @@ app.include_router(thumbnail.router)
 
 
 # add the download routes to the app
-#app.include_router(download.download_app)
-app.mount("/download", download.download_app)
+# app.include_router(download.download_app)
+app.mount('/download', download.download_app)
