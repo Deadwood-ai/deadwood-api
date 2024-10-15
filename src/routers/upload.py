@@ -70,7 +70,7 @@ def compute_sha256(file_path: Path) -> str:
 
 
 def create_dataset_entry(
-	filename: str, target_path: Path, sha256: str, bounds, user_id: str, copy_time: int
+	filename: str, target_path: Path, sha256: str, bounds, user_id: str, copy_time: int, token: str
 ) -> Dataset:
 	"""Create a new dataset entry in the database."""
 	data = dict(
@@ -85,12 +85,14 @@ def create_dataset_entry(
 	)
 	dataset = Dataset(**data)
 
-	with use_client() as client:
+	logger.info(f'Creating dataset entry {dataset} for file {target_path}', extra={'token': token})
+
+	with use_client(token) as client:
 		try:
 			send_data = {k: v for k, v in dataset.model_dump().items() if k != 'id' and v is not None}
 			response = client.table(settings.datasets_table).insert(send_data).execute()
 		except Exception as e:
-			logger.exception(f'Error uploading dataset: {str(e)}')
+			logger.exception(f'Error uploading dataset: {str(e)}', extra={'token': token})
 			raise HTTPException(status_code=400, detail=f'Error uploading dataset: {str(e)}')
 
 	return Dataset(**response.data[0])
@@ -162,7 +164,7 @@ async def upload_geotiff_chunk(
 		logger.info(f'Transformed bounds {transformed_bounds} for file {target_path}', extra={'token': token})
 
 		# Create dataset entry
-		dataset = create_dataset_entry(filename, target_path, sha256, transformed_bounds, user.id, copy_time)
+		dataset = create_dataset_entry(filename, target_path, sha256, transformed_bounds, user.id, copy_time, token)
 
 		logger.info(f'Created dataset entry {dataset} for file {target_path}', extra={'token': token})
 
