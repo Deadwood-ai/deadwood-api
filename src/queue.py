@@ -5,6 +5,7 @@ from .settings import settings
 from .supabase import use_client, login
 from .processing import process_cog, process_thumbnail
 from .logger import logger
+import shutil
 
 
 def current_running_tasks(token: str) -> int:
