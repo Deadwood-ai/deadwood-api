@@ -14,7 +14,7 @@ from .deadwood.cog import calculate_cog
 from .deadwood.thumbnail import calculate_thumbnail
 
 
-def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
+def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, token: str):
 	# Check if the file already exists locally
 	if os.path.exists(local_file_path):
 		logger.info(f'File already exists locally at: {local_file_path}')
@@ -22,18 +22,18 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
 
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}')
+		pkey = paramiko.RSAKey.from_private_key_file(settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase)
+		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}', extra={'token': token})
 
 		ssh.connect(
 			hostname=settings.storage_server_ip,
 			username=settings.storage_server_username,
-			key_filename=settings.processor_pk_path,
-			passphrase=settings.processor_pk_passphrase,
+			pkey=pkey,
 			port=22,  # Add this line to specify the default SSH port
 		)
 
 		with ssh.open_sftp() as sftp:
-			logger.info(f'Pulling file from storage server: {remote_file_path} to {local_file_path}')
+			logger.info(f'Pulling file from storage server: {remote_file_path} to {local_file_path}', extra={'token': token})
 
 			# Create the directory for local_file_path if it doesn't exist
 			local_dir = Path(local_file_path).parent
@@ -42,35 +42,51 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str):
 
 		# Check if the file exists after pulling
 		if os.path.exists(local_file_path):
-			logger.info(f'File successfully saved at: {local_file_path}')
+			logger.info(f'File successfully saved at: {local_file_path}', extra={'token': token})
 		else:
-			logger.error(f'Error: File not found at {local_file_path} after pulling')
+			logger.error(f'Error: File not found at {local_file_path} after pulling', extra={'token': token})
 
 
-def push_file_to_storage_server(local_file_path: str, remote_file_path: str):
+def push_file_to_storage_server(local_file_path: str, remote_file_path: str, token: str):
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}')
+		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}', extra={'token': token})
+		pkey = paramiko.RSAKey.from_private_key_file(settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase)
 		ssh.connect(
 			hostname=settings.storage_server_ip,
 			username=settings.storage_server_username,
-			key_filename=settings.processor_pk_path,
-			passphrase=settings.processor_pk_passphrase,
+			pkey=pkey,
 			port=22,  # Add this line to specify the default SSH port
 		)
 		with ssh.open_sftp() as sftp:
-			logger.info(f'Pushing file to storage server: {local_file_path} to {remote_file_path}')
+			logger.info(f'Pushing file to storage server: {local_file_path} to {remote_file_path}', extra={'token': token})
+			
 			# Extract the remote directory path
 			remote_dir = os.path.dirname(remote_file_path)
 
 			try:
-				# Create the remote directory if it doesn't exist
-				sftp.mkdir(remote_dir)
+				sftp.stat(remote_file_path)
+				logger.warning(f'File {remote_file_path} already exists and will be overwritten', extra={'token': token})
 			except IOError:
-				logger.warning(f'Directory {remote_dir} already exists')
+				logger.info(f'No existing file found at {remote_file_path}', extra={'token': token})
+				
+			# Ensure the remote directory exists
+			try:
+				sftp.stat(remote_dir)
+			except IOError:
+				try:
+					sftp.mkdir(remote_dir)
+					logger.info(f'Created directory {remote_dir}', extra={'token': token})
+				except IOError as e:
+					logger.warning(f'Error creating directory {remote_dir}: {e}', extra={'token': token})
 
-			sftp.put(local_file_path, remote_file_path)
-			logger.info(f'File successfully pushed at: {remote_file_path}')
+			# Push the file
+			try:
+				sftp.put(local_file_path, remote_file_path)
+				logger.info(f'File successfully pushed to: {remote_file_path}', extra={'token': token})
+			except IOError as e:
+				logger.error(f'Failed to push file to {remote_file_path}: {str(e)}', extra={'token': token})
+				raise
 
 
 def update_status(token: str, dataset_id: int, status: StatusEnum):
@@ -113,7 +129,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 	# get the remote file path
 	storage_server_file_path = f'{settings.storage_server_data_path}/archive/{dataset.file_name}'
 
-	pull_file_from_storage_server(storage_server_file_path, str(input_path))
+	pull_file_from_storage_server(storage_server_file_path, str(input_path), token)
 
 	# get the options
 	options = task.build_args
@@ -135,13 +151,13 @@ def process_cog(task: QueueTask, temp_dir: Path):
 		tiling_scheme=options.tiling_scheme,
 	)
 	logger.info(
-		f'COG profile returned for dataset {dataset.id}: {info}',
-		extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id},
+		f'COG created for dataset {dataset.id}: {info}',
+		extra={'token': token},
 	)
 	# push the file to the storage server
 	storage_server_cog_path = f'{settings.storage_server_data_path}/cogs/{cog_folder}/{file_name}'
 
-	push_file_to_storage_server(str(output_path), storage_server_cog_path)
+	push_file_to_storage_server(str(output_path), storage_server_cog_path, token)
 
 	t2 = time.time()
 
@@ -184,8 +200,8 @@ def process_cog(task: QueueTask, temp_dir: Path):
 	monitoring.cog_size.observe(cog.cog_size)
 
 	logger.info(
-		f'Finished creating new COG <profile: {cog.compression}> for dataset {dataset.id}.',
-		extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id},
+		f'Finished creating new COG for dataset {dataset.id}.',
+		extra={'token': token},
 	)
 
 
@@ -194,7 +210,6 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 	token = login(settings.processor_username, settings.processor_password).session.access_token
 
 	user = verify_token(token)
-	print('user is:', user)
 	if not user:
 		return HTTPException(status_code=401, detail='Invalid token')
 
@@ -208,7 +223,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 		return HTTPException(status_code=500, detail='Error fetching dataset')
 
 	# update the status to processing
-	update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
+	update_status(token, dataset_id=dataset.id, status=StatusEnum.thumbnail_processing)
 
 	# get local file paths
 	input_path = Path(temp_dir) / dataset.file_name
@@ -217,18 +232,18 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
 	# get the remote file path
 	storage_server_file_path = f'{settings.storage_server_data_path}/archive/{dataset.file_name}'
-	pull_file_from_storage_server(storage_server_file_path, str(input_path))
+	pull_file_from_storage_server(storage_server_file_path, str(input_path), token)
 
 	t1 = time.time()
 	calculate_thumbnail(str(input_path), str(output_path))
 	logger.info(
 		f'Thumbnail generated for dataset {dataset.id}',
-		extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id},
+		extra={'token': token},
 	)
 
 	# push the file to the storage server
 	storage_server_thumbnail_path = f'{settings.storage_server_data_path}/thumbnails/{thumbnail_file_name}'
-	push_file_to_storage_server(str(output_path), storage_server_thumbnail_path)
+	push_file_to_storage_server(str(output_path), storage_server_thumbnail_path, token)
 
 	t2 = time.time()
 
@@ -244,13 +259,11 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
 	try:
 		with use_client(token) as client:
-			# check if thumbnail already exists, delete it
-			response = client.table(settings.thumbnail_table).select('*').eq('dataset_id', dataset.id).execute()
-			if len(response.data) > 0:
-				client.table(settings.thumbnail_table).delete().eq('dataset_id', dataset.id).execute()
-
-			# insert new thumbnail data
-			client.table(settings.thumbnail_table).insert(thumbnail.model_dump()).execute()
+			# Use upsert instead of delete and insert
+			client.table(settings.thumbnail_table).upsert(
+				thumbnail.model_dump(),
+				on_conflict='dataset_id'  # Assuming dataset_id is the primary key
+			).execute()
 	except Exception as e:
 		logger.error(f'Error: {e}')
 		return HTTPException(status_code=500, detail='Error saving thumbnail to database')
@@ -260,5 +273,5 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
 	logger.info(
 		f'Finished creating thumbnail for dataset {dataset.id}.',
-		extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id},
+		extra={'token': token},
 	)

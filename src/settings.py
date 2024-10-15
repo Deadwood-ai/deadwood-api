@@ -34,16 +34,17 @@ class Settings(BaseSettings):
 	uvicorn_root_path: str = ''
 	uvicorn_proxy_headers: bool = True
 
-	# processing server settings
+	# storage server settings
 	storage_server_ip: str = ''
 	storage_server_username: str = ''
 	storage_server_data_path: str = ''
 
-	# supabase settings
+	# processor settings
 	processor_username: str = 'processor@deadtrees.earth'
 	processor_password: str = 'processor'
-	processor_pk_path: str = ''
-	processor_pk_passphrase: str = ''
+	ssh_private_key_path: str = '/app/ssh_key'
+	ssh_private_key_passphrase: str = ''
+
 	# tabe names
 	datasets_table: str = 'v1_datasets'
 	metadata_table: str = 'v1_metadata'
