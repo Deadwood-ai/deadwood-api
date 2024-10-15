@@ -121,37 +121,55 @@ async def upload_geotiff_chunk(
 	tmp_dir = Path(tempfile.gettempdir()) / upload_id
 	tmp_dir.mkdir(parents=True, exist_ok=True)
 
+	logger.info(f'Received chunk {chunk_index} of {chunks_total} for upload {upload_id}', extra={'token': token})
+
 	# Save the chunk
 	chunk_file = tmp_dir / f'chunk_{chunk_index}'
 	with chunk_file.open('wb') as buffer:
 		content = await file.read()
 		buffer.write(content)
 
+	logger.info(f'Saved chunk {chunk_index} of {chunks_total} for upload {upload_id}', extra={'token': token})
+
 	# If this is the last chunk, combine all chunks
 	if int(chunk_index) == int(chunks_total) - 1:
 		combined_file = await combine_chunks(tmp_dir, chunks_total, filename)
+
+		logger.info(f'Combined chunks for upload {upload_id}', extra={'token': token})
 
 		# Process the combined file (similar to the original upload endpoint)
 		uid = str(uuid.uuid4())
 		file_name = f'{uid}_{Path(filename).stem}.tif'
 		target_path = settings.archive_path / file_name
 
+		logger.info(f'Moving combined file to target path {target_path}', extra={'token': token})
+
 		# Move the combined file to the target path
 		shutil.move(str(combined_file), str(target_path))
 
+		logger.info(f'Moved combined file to target path {target_path}', extra={'token': token})
+
 		# Compute SHA256 checksum
 		sha256 = compute_sha256(target_path)
+
+		logger.info(f'Computed SHA256 checksum {sha256} for file {target_path}', extra={'token': token})
 
 		# Open with rasterio and get bounds
 		with rasterio.open(str(target_path), 'r') as src:
 			bounds = src.bounds
 			transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *bounds)
 
+		logger.info(f'Transformed bounds {transformed_bounds} for file {target_path}', extra={'token': token})
+
 		# Create dataset entry
 		dataset = create_dataset_entry(filename, target_path, sha256, transformed_bounds, user.id, copy_time)
 
+		logger.info(f'Created dataset entry {dataset} for file {target_path}', extra={'token': token})
+
 		# Clean up the temporary directory
 		shutil.rmtree(tmp_dir)
+
+		logger.info(f'Cleaned up temporary directory {tmp_dir}', extra={'token': token})
 
 		return dataset
 
