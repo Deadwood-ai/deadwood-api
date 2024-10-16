@@ -98,7 +98,7 @@ def background_process():
 
 	# is there is nothing in the queue, just stop the process and log
 	if queued_tasks == 0:
-		logger.info('No tasks in the queue.', extra={'token': token})
+		logger.info('No tasks in the queue.')
 		return
 
 	# check if we can start another task
@@ -117,7 +117,7 @@ def background_process():
 			process_task(task, token=token)
 
 			# add another background process with a short timeout
-			Timer(interval=1, function=background_process).start()
+			# Timer(interval=1, function=background_process).start()
 		else:
 			# we expected a task here, but there was None
 			logger.error(
@@ -127,11 +127,12 @@ def background_process():
 	else:
 		# inform no spot available
 		logger.debug(
-			f'No spot available for new task. Retry in {settings.task_retry_delay} seconds.',
+			f'No spot available for new task.',
 			extra={'token': token},
 		)
+		return
 		# restart this process after the configured delay
-		Timer(interval=settings.task_retry_delay, function=background_process).start()
+		# Timer(interval=settings.task_retry_delay, function=background_process).start()
 
 
 if __name__ == '__main__':
