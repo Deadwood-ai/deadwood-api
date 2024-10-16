@@ -1,3 +1,6 @@
+# testdata
+test_data/*
+
 .cursorrules
 # Byte-compiled / optimized / DLL files
 __pycache__/
