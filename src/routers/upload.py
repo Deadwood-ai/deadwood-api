@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 import hashlib
 import rasterio
-import os
+from rasterio.env import Env
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
@@ -157,9 +157,13 @@ async def upload_geotiff_chunk(
 		logger.info(f'Computed SHA256 checksum {sha256} for file {target_path}', extra={'token': token})
 
 		# Open with rasterio and get bounds
-		with rasterio.open(str(target_path), 'r') as src:
-			bounds = src.bounds
-			transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *bounds)
+		with Env(GTIFF_SRS_SOURCE='EPSG'):
+			with rasterio.open(str(target_path), 'r') as src:
+				try:
+					transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *src.bounds)
+				except Exception as e:
+					logger.error(f'No CRS found for {target_path}: {e}')
+					return HTTPException(status_code=400, detail=f'No CRS found for {target_path}: {e}')
 
 		logger.info(f'Transformed bounds {transformed_bounds} for file {target_path}', extra={'token': token})
 
