@@ -22,8 +22,13 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		pkey = paramiko.RSAKey.from_private_key_file(settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase)
-		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}', extra={'token': token})
+		pkey = paramiko.RSAKey.from_private_key_file(
+			settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase
+		)
+		logger.info(
+			f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}',
+			extra={'token': token},
+		)
 
 		ssh.connect(
 			hostname=settings.storage_server_ip,
@@ -33,7 +38,9 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 		)
 
 		with ssh.open_sftp() as sftp:
-			logger.info(f'Pulling file from storage server: {remote_file_path} to {local_file_path}', extra={'token': token})
+			logger.info(
+				f'Pulling file from storage server: {remote_file_path} to {local_file_path}', extra={'token': token}
+			)
 
 			# Create the directory for local_file_path if it doesn't exist
 			local_dir = Path(local_file_path).parent
@@ -50,8 +57,13 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 def push_file_to_storage_server(local_file_path: str, remote_file_path: str, token: str):
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		logger.info(f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}', extra={'token': token})
-		pkey = paramiko.RSAKey.from_private_key_file(settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase)
+		logger.info(
+			f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}',
+			extra={'token': token},
+		)
+		pkey = paramiko.RSAKey.from_private_key_file(
+			settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase
+		)
 		ssh.connect(
 			hostname=settings.storage_server_ip,
 			username=settings.storage_server_username,
@@ -59,17 +71,21 @@ def push_file_to_storage_server(local_file_path: str, remote_file_path: str, tok
 			port=22,  # Add this line to specify the default SSH port
 		)
 		with ssh.open_sftp() as sftp:
-			logger.info(f'Pushing file to storage server: {local_file_path} to {remote_file_path}', extra={'token': token})
-			
+			logger.info(
+				f'Pushing file to storage server: {local_file_path} to {remote_file_path}', extra={'token': token}
+			)
+
 			# Extract the remote directory path
 			remote_dir = os.path.dirname(remote_file_path)
 
 			try:
 				sftp.stat(remote_file_path)
-				logger.warning(f'File {remote_file_path} already exists and will be overwritten', extra={'token': token})
+				logger.warning(
+					f'File {remote_file_path} already exists and will be overwritten', extra={'token': token}
+				)
 			except IOError:
 				logger.info(f'No existing file found at {remote_file_path}', extra={'token': token})
-				
+
 			# Ensure the remote directory exists
 			try:
 				sftp.stat(remote_dir)
@@ -140,6 +156,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 
 	# output path is in the temporary directory
 	output_path = Path(temp_dir) / file_name
+	logger.info(f'Calculating COG for dataset {dataset.id} with options: {options}', extra={'token': token})
 
 	t1 = time.time()
 	info = calculate_cog(
@@ -262,7 +279,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 			# Use upsert instead of delete and insert
 			client.table(settings.thumbnail_table).upsert(
 				thumbnail.model_dump(),
-				on_conflict='dataset_id'  # Assuming dataset_id is the primary key
+				on_conflict='dataset_id',  # Assuming dataset_id is the primary key
 			).execute()
 	except Exception as e:
 		logger.error(f'Error: {e}')
