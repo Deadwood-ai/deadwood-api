@@ -1,6 +1,6 @@
 from pathlib import Path
 import subprocess
-import logger
+from ..logger import logger
 
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
