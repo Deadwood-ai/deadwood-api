@@ -1,10 +1,11 @@
 from pathlib import Path
 import subprocess
+import logger
 
 from rio_cogeo.cogeo import cog_translate, cog_validate, cog_info
 from rio_cogeo.profiles import cog_profiles
 
-def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized"):
+def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", quality=75, skip_recreate: bool = False, tiling_scheme="web-optimized", token: str = None):
     """Function to initiate the cog calculation process.
 
     Args:
@@ -23,7 +24,7 @@ def calculate_cog(tiff_file_path: str, cog_target_path: str, profile="webp", qua
     # return _rio_calculate_cog(tiff_file_path, cog_target_path, profile=profile, quality=quality, skip_recreate=skip_recreate, tiling_scheme="web-optimized")
 
 
-def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False):
+def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpeg", overviews=None, quality=75, skip_recreate: bool = False, token: str = None):
     """Function to calculate a Cloud Optimized Geotiff (cog) from a geotiff using gdal.
 
     Args:
@@ -54,13 +55,26 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
         "-co", 'TILING_SCHEME=GoogleMapsCompatible',
         "-co", "OVERVIEWS=IGNORE_EXISTING",
         "--config", "GDAL_TIFF_INTERNAL_MASK", "TRUE",
-        
+        "--config", "GDAL_GTIFF_SRS_SOURCE", "EPSG"
     ]
     if overviews is not None:
         cmd_translate.extend(["-co", f"OVERVIEW_COUNT={overviews}"])
 
     # apply
-    subprocess.run(cmd_translate)
+    try:
+        logger.info(f'Running gdal_translate with EPSG:3857', extra={'token': token})
+        result = subprocess.run(cmd_translate, check=True, capture_output=True, text=True)
+        logger.info(f"gdal_translate output:\n{result.stdout}", extra={'token': token})
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error running gdal_translate: {e}", extra={'token': token})
+        logger.info('Retrying with EPSG:3857', extra={'token': token})
+        try:
+            cmd_translate.extend(["-a_srs", "EPSG:3857"])
+            result = subprocess.run(cmd_translate, check=True, capture_output=True, text=True)
+            logger.info(f"gdal_translate output (with EPSG:3857):\n{result.stdout}", extra={'token': token})
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error running gdal_translate with EPSG:3857: {e}", extra={'token': token})
+            raise  # Re-raise the exception to stop execution if both attempts fail
 
     return cog_info(cog_target_path)
 
