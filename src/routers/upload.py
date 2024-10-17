@@ -318,19 +318,25 @@ def upsert_metadata(
 	user = verify_token(token)
 	if not user:
 		return HTTPException(status_code=401, detail='Invalid token')
-
+	
+	logger.info(f'Upserting metadata for Dataset {dataset_id}', extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
 	# load the metadata info - if it already exists in the database
-	with use_client(token) as client:
-		response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
-
-		if len(response.data) > 0:
-			metadata = Metadata(**response.data[0]).model_dump()
-		else:
-			logger.info(
-				f'No existing Metadata found for Dataset {dataset_id}. Creating a new one.',
-				extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
-			)
-			metadata = {'dataset_id': dataset_id, 'user_id': user.id}
+	
+	try: 
+		with use_client(token) as client:
+			response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
+			if len(response.data) > 0:
+				metadata = Metadata(**response.data[0]).model_dump()
+			else:
+				logger.info(
+					f'No existing Metadata found for Dataset {dataset_id}. Creating a new one.',
+					extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
+				)
+				metadata = {'dataset_id': dataset_id, 'user_id': user.id}
+	except Exception as e:
+		msg = f'An error occurred while trying to get the metadata of Dataset <ID={dataset_id}>: {str(e)}'
+		logger.exception(msg, extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
+		return HTTPException(status_code=400, detail=msg)
 
 	# update the given metadata if any with the payload
 	try:
