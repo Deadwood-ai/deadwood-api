@@ -1,6 +1,6 @@
 from threading import Timer
 
-from .models import QueueTask
+from .models import QueueTask, StatusEnum
 from .settings import settings
 from .supabase import use_client, login
 from .processing import process_cog, process_thumbnail
@@ -56,6 +56,14 @@ def get_next_task(token: str) -> QueueTask:
 	return QueueTask(**response.data[0])
 
 
+def is_dataset_uploaded(task: QueueTask, token: str) -> bool:
+	with use_client(token) as client:
+		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
+	if response.status == StatusEnum.uploaded:
+		return True
+	return False
+
+
 def process_task(task: QueueTask, token: str):
 	try:
 		# mark this task as processing
@@ -105,7 +113,8 @@ def background_process():
 	if num_of_running < settings.concurrent_tasks:
 		# get the next task
 		task = get_next_task(token)
-		if task is not None:
+		is_uploaded = is_dataset_uploaded(task, token)
+		if task is not None and is_uploaded:
 			logger.info(
 				f'Start a new background process for queued task: {task}.',
 				extra={
@@ -121,13 +130,13 @@ def background_process():
 		else:
 			# we expected a task here, but there was None
 			logger.error(
-				'Expected a task to process, but none was in the queue.',
+				'Task was expected to be uploaded, but was not.',
 				extra={'token': token},
 			)
 	else:
 		# inform no spot available
 		logger.debug(
-			f'No spot available for new task.',
+			'No spot available for new task.',
 			extra={'token': token},
 		)
 		return

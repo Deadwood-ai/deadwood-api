@@ -27,6 +27,8 @@ class LicenseEnum(str, Enum):
 
 class StatusEnum(str, Enum):
 	pending = 'pending'
+	uploading = 'uploading'
+	uploaded = 'uploaded'
 	processing = 'processing'
 	errored = 'errored'
 	cog_processing = 'cog_processing'
@@ -96,7 +98,7 @@ class Thumbnail(BaseModel):
 	runtime: float
 
 
-class Dataset(BaseModel):
+class Dataset(PartialModelMixin, BaseModel):
 	"""
 	The Dataset class is the base class for each Dataset object in the database.
 	It contains the minimum required metadata to upload a GeoTiff and start processing.
@@ -107,14 +109,14 @@ class Dataset(BaseModel):
 	"""
 
 	id: Optional[int] = None
-	file_name: str
-	file_alias: str
-	file_size: int
-	copy_time: float
-	sha256: str
-	bbox: BoundingBox
-	status: StatusEnum
-	user_id: str
+	file_name: Optional[str] = None
+	file_alias: Optional[str] = None
+	file_size: Optional[int] = None
+	copy_time: Optional[float] = None
+	sha256: Optional[str] = None
+	bbox: Optional[BoundingBox] = None
+	status: Optional[StatusEnum] = None
+	user_id: Optional[str] = None
 	created_at: Optional[datetime] = None
 
 	@field_serializer('created_at', mode='plain')
@@ -125,7 +127,9 @@ class Dataset(BaseModel):
 
 	@field_validator('bbox', mode='before')
 	@classmethod
-	def transform_bbox(cls, raw_string: str | BoundingBox) -> BoundingBox:
+	def transform_bbox(cls, raw_string: Optional[str | BoundingBox]) -> Optional[BoundingBox]:
+		if raw_string is None:
+			return None
 		if isinstance(raw_string, str):
 			# parse the string
 			s = raw_string.replace('BOX(', '').replace(')', '')
@@ -142,13 +146,15 @@ class Dataset(BaseModel):
 			return raw_string
 
 	@field_serializer('bbox', mode='plain')
-	def bbox_to_postgis(self, bbox: BoundingBox) -> str:
+	def bbox_to_postgis(self, bbox: Optional[BoundingBox]) -> Optional[str]:
 		if bbox is None:
 			return None
-		return f'BOX({bbox.left} {bbox.bottom}, {bbox.right} {bbox.top})'
+		return f'BOX({bbox.left} {bbox.bottom},{bbox.right} {bbox.top})'
 
 	@property
 	def centroid(self):
+		if self.bbox is None:
+			return None
 		return (self.bbox.left + self.bbox.right) / 2, (self.bbox.bottom + self.bbox.top) / 2
 
 	@classmethod
