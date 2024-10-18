@@ -166,6 +166,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 		quality=options.quality,
 		skip_recreate=not options.force_recreate,
 		tiling_scheme=options.tiling_scheme,
+		token=token,
 	)
 	logger.info(
 		f'COG created for dataset {dataset.id}: {info}',
