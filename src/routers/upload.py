@@ -202,9 +202,9 @@ async def upload_geotiff_chunk(
 		target_path = settings.archive_path / file_name
 		file_alias = file.filename
 
-		initial_dataset = create_initial_dataset_entry(filename, file_alias, user.id, copy_time, token)
+		initial_dataset = create_initial_dataset_entry(file_name, file_alias, user.id, copy_time, token)
 
-		background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, filename, target_path, token, initial_dataset)
+		background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 
 		return initial_dataset
 
