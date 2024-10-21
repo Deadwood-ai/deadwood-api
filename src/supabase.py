@@ -5,20 +5,22 @@ from pydantic import BaseModel
 from supabase import create_client
 from supabase.client import Client, ClientOptions
 from gotrue import User
+from gotrue.errors import AuthApiError
+
 
 from .settings import settings
 
 
-def login(user: str, password: str):
+def login(user: str, password: str) -> Union[str, Literal[False]]:
 	"""Creates a supabase client instance and authorizes the user with login and password to
-	return a supabase session.
+	return an access token.
 
 	Args:
 	    user (str): Supabase username as email
 	    password (str): User password for supabase
 
 	Returns:
-	    AuthResponse: Returns a new supabase session if the login was successful
+	    Union[str, Literal[False]]: Returns the access token if login was successful, False otherwise
 	"""
 	# create a supabase client
 	client = create_client(
@@ -26,14 +28,29 @@ def login(user: str, password: str):
 		settings.supabase_key,
 		options=ClientOptions(auto_refresh_token=False),
 	)
+	print('login')
+	try:
+		# First, try to refresh the existing session
+		auth_response = client.auth.refresh_session()
+		print('Session refreshed successfully')
+		return auth_response.session.access_token
+	except AuthApiError as e:
+		print('Session refresh failed:', e)
+		
+		# If refresh fails, try to sign in with password
+		try:
+			auth_response = client.auth.sign_in_with_password({'email': user, 'password': password})
+			print('Signed in with password successfully')
+			return auth_response.session.access_token
+		except AuthApiError as e:
+			print('Sign-in failed:', e)
+			return False
 
-	client.auth.sign_in_with_password({'email': user, 'password': password})
-	auth_response = client.auth.refresh_session()
 
 	# client.auth.sign_out()
 	# client.auth.close()
 	# return the response
-	return auth_response
+	# return auth_response
 
 
 def verify_token(jwt: str) -> Union[Literal[False], User]:
