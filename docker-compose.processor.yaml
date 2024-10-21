@@ -5,6 +5,10 @@ services:
       context: .
       dockerfile: Dockerfile.processor
     network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
     volumes:
       - ./data:/data
       - ./src:/app/src
