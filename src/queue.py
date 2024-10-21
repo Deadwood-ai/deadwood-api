@@ -2,7 +2,7 @@ from threading import Timer
 
 from .models import QueueTask, StatusEnum
 from .settings import settings
-from .supabase import use_client, login
+from .supabase import use_client, login, verify_token
 from .processing import process_cog, process_thumbnail
 from .logger import logger
 import shutil
@@ -59,7 +59,8 @@ def get_next_task(token: str) -> QueueTask:
 def is_dataset_uploaded(task: QueueTask, token: str) -> bool:
 	with use_client(token) as client:
 		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
-	if response.status == StatusEnum.uploaded:
+		print('res:', response.data[0]['status'])
+	if response.data[0]['status'] == StatusEnum.uploaded:
 		return True
 	return False
 
@@ -99,6 +100,9 @@ def background_process():
 	"""
 	# use the processor to log in
 	token = login(settings.processor_username, settings.processor_password).session.access_token
+	user = verify_token(token)
+	if not user:
+		raise HTTPException(status_code=401, detail='Invalid token')
 
 	# get the number of currently running tasks
 	num_of_running = current_running_tasks(token)
