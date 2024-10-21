@@ -347,11 +347,14 @@ def upsert_metadata(
 	user = verify_token(token)
 	if not user:
 		return HTTPException(status_code=401, detail='Invalid token')
-	
-	logger.info(f'Upserting metadata for Dataset {dataset_id}', extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
+
+	logger.info(
+		f'Upserting metadata for Dataset {dataset_id}',
+		extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
+	)
 	# load the metadata info - if it already exists in the database
-	
-	try: 
+
+	try:
 		with use_client(token) as client:
 			response = client.table(settings.metadata_table).select('*').eq('dataset_id', dataset_id).execute()
 			if len(response.data) > 0:
