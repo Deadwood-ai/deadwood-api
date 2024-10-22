@@ -43,7 +43,7 @@ def get_old_env(**kwargs) -> dict:
 		if supabase_user is None or supabase_password is None:
 			raise ValueError('No token or user/password provided.')
 		else:
-			token = login(supabase_user, supabase_password).session.access_token
+			token = login(supabase_user, supabase_password)
 
 	return dict(
 		metadata_table=metadata_table,

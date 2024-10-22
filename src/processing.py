@@ -123,7 +123,7 @@ def update_status(token: str, dataset_id: int, status: StatusEnum):
 
 def process_cog(task: QueueTask, temp_dir: Path):
 	# login with the processor
-	token = login(settings.processor_username, settings.processor_password).session.access_token
+	token = login(settings.processor_username, settings.processor_password)
 
 	user = verify_token(token)
 	if not user:
@@ -225,7 +225,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 
 def process_thumbnail(task: QueueTask, temp_dir: Path):
 	# login with the processor
-	token = login(settings.processor_username, settings.processor_password).session.access_token
+	token = login(settings.processor_username, settings.processor_password)
 
 	user = verify_token(token)
 	if not user:

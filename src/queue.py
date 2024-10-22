@@ -59,7 +59,7 @@ def get_next_task(token: str) -> QueueTask:
 def is_dataset_uploaded(task: QueueTask, token: str) -> bool:
 	with use_client(token) as client:
 		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
-		print('res:', response.data[0]['status'])
+		logger.info('dataset status:', response.data[0]['status'])
 	if response.data[0]['status'] == StatusEnum.uploaded:
 		return True
 	return False
@@ -99,7 +99,7 @@ def background_process():
 
 	"""
 	# use the processor to log in
-	token = login(settings.processor_username, settings.processor_password).session.access_token
+	token = login(settings.processor_username, settings.processor_password)
 	user = verify_token(token)
 	if not user:
 		raise HTTPException(status_code=401, detail='Invalid token')
