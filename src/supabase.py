@@ -1,5 +1,6 @@
-from typing import Union, Generator, Literal, Optional
+from typing import Union, Literal, Optional, Generator
 from contextlib import contextmanager
+import time
 
 from pydantic import BaseModel
 from supabase import create_client
@@ -8,32 +9,57 @@ from gotrue import User
 
 from .settings import settings
 
+# Global variable to store the cached session
+cached_session = None
 
-def login(user: str, password: str):
-	"""Creates a supabase client instance and authorizes the user with login and password to
-	return a supabase session.
+
+def login(user: str, password: str) -> str:
+	"""
+	Creates a supabase client instance, authorizes the user with login and password,
+	and manages session caching and refreshing.
 
 	Args:
 	    user (str): Supabase username as email
 	    password (str): User password for supabase
 
 	Returns:
-	    AuthResponse: Returns a new supabase session if the login was successful
+	    str: Returns a valid access token
 	"""
-	# create a supabase client
+	global cached_session
+
 	client = create_client(
 		settings.supabase_url,
 		settings.supabase_key,
 		options=ClientOptions(auto_refresh_token=False),
 	)
 
-	client.auth.sign_in_with_password({'email': user, 'password': password})
-	auth_response = client.auth.refresh_session()
+	current_time = int(time.time())
+	threshold = 300  # 5 minutes before expiration
 
-	# client.auth.sign_out()
-	# client.auth.close()
-	# return the response
-	return auth_response
+	if cached_session:
+		print('found cached session:', cached_session)
+		if cached_session['session']['expires_at'] > (current_time + threshold):
+			print('session is still valid')
+			return cached_session['session']['access_token']
+		else:
+			print('session is expired, refreshing')
+			try:
+				refreshed_session = client.auth.refresh_session()
+				cached_session = refreshed_session
+				print('session refreshed', cached_session)
+				return cached_session['session']['access_token']
+			except Exception:
+				print('session refresh failed, clearing cache')
+				cached_session = None
+
+	# If no valid cached session, perform a new login
+	try:
+		auth_response = client.auth.sign_in_with_password({'email': user, 'password': password})
+		cached_session = auth_response
+		print('new session created and cached', cached_session)
+		return cached_session['session']['access_token']
+	except Exception as e:
+		raise Exception(f'Login failed: {str(e)}')
 
 
 def verify_token(jwt: str) -> Union[Literal[False], User]:
