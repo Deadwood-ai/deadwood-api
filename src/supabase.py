@@ -40,14 +40,14 @@ def login(user: str, password: str) -> str:
 		print('found cached session:', cached_session)
 		if cached_session['session']['expires_at'] > (current_time + threshold):
 			print('session is still valid')
-			return cached_session['session']['access_token']
+			return cached_session
 		else:
 			print('session is expired, refreshing')
 			try:
 				refreshed_session = client.auth.refresh_session()
 				cached_session = refreshed_session
 				print('session refreshed', cached_session)
-				return cached_session['session']['access_token']
+				return cached_session
 			except Exception:
 				print('session refresh failed, clearing cache')
 				cached_session = None
@@ -57,7 +57,7 @@ def login(user: str, password: str) -> str:
 		auth_response = client.auth.sign_in_with_password({'email': user, 'password': password})
 		cached_session = auth_response
 		print('new session created and cached', cached_session)
-		return cached_session['session']['access_token']
+		return cached_session
 	except Exception as e:
 		raise Exception(f'Login failed: {str(e)}')
 
