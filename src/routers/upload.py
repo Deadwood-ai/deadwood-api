@@ -58,7 +58,7 @@ def format_size(size: int) -> str:
 		return f'{size / 1024**3:.2f} GB'
 
 
-async def combine_chunks(
+def combine_chunks(
 	tmp_dir: Path,
 	total_chunks: int,
 	filename: str,
