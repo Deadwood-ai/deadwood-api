@@ -33,11 +33,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 executor = ProcessPoolExecutor(max_workers=5)
 
 
-def run_in_processpool(func, *args):
-	loop = asyncio.get_event_loop()
-	return loop.run_in_executor(executor, func, *args)
-
-
 # little helper
 def format_size(size: int) -> str:
 	"""Converting the filesize of the geotiff into a human readable format for the logger
@@ -214,9 +209,7 @@ async def upload_geotiff_chunk(
 
 		# background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 		# Offload the combine_chunks function to the process pool
-		asyncio.create_task(
-			run_in_processpool(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
-		)
+		executor.submit(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 
 		return initial_dataset
 
