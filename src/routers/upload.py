@@ -5,6 +5,8 @@ import time
 import hashlib
 import rasterio
 from rasterio.env import Env
+from concurrent.futures import ProcessPoolExecutor
+import asyncio
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
@@ -27,6 +29,13 @@ router = APIRouter()
 
 # create the OAuth2 password scheme for supabase login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+
+executor = ProcessPoolExecutor(max_workers=5)
+
+
+def run_in_processpool(func, *args):
+	loop = asyncio.get_event_loop()
+	return loop.run_in_executor(executor, func, *args)
 
 
 # little helper
@@ -58,6 +67,7 @@ async def combine_chunks(
 	initial_dataset: Dataset,
 ) -> None:
 	"""Combine all chunks into a single file and process it."""
+	logger.info(f'Combining chunks for file {filename}', extra={'token': token})
 	combined_file = tmp_dir / filename
 	with combined_file.open('wb') as outfile:
 		for i in range(int(total_chunks)):
@@ -67,7 +77,6 @@ async def combine_chunks(
 			chunk_file.unlink()  # Remove the chunk file after combining
 
 	logger.info(f'Combined chunks for file {filename}', extra={'token': token})
-
 	# Move the combined file to the target path
 	shutil.move(str(combined_file), str(target_path))
 
@@ -168,7 +177,6 @@ async def upload_geotiff_chunk(
 	copy_time: Annotated[int, Form()],
 	upload_id: Annotated[str, Form()],
 	token: Annotated[str, Depends(oauth2_scheme)],
-	background_tasks: BackgroundTasks,
 ):
 	"""
 	Handle chunked upload of a GeoTIFF file.
@@ -204,7 +212,11 @@ async def upload_geotiff_chunk(
 
 		initial_dataset = create_initial_dataset_entry(file_name, file_alias, user.id, copy_time, token)
 
-		background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
+		# background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
+		# Offload the combine_chunks function to the process pool
+		asyncio.create_task(
+			run_in_processpool(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
+		)
 
 		return initial_dataset
 
