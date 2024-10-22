@@ -59,7 +59,8 @@ def get_next_task(token: str) -> QueueTask:
 def is_dataset_uploaded(task: QueueTask, token: str) -> bool:
 	with use_client(token) as client:
 		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
-		logger.info('dataset status:', response.data[0]['status'])
+		msg = f'dataset status: {response.data[0]["status"]}'
+		logger.info(msg, extra={'token': token})
 	if response.data[0]['status'] == StatusEnum.uploaded:
 		return True
 	return False
