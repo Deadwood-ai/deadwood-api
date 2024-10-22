@@ -56,7 +56,7 @@ def login(user: str, password: str) -> str:
 	try:
 		auth_response = client.auth.sign_in_with_password({'email': user, 'password': password})
 		cached_session = auth_response
-		print('new session created and cached')
+		# print('new session created and cached')
 		return cached_session.session.access_token
 	except Exception as e:
 		raise Exception(f'Login failed: {str(e)}')
