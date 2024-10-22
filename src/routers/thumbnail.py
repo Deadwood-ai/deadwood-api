@@ -38,7 +38,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 	except Exception as e:
 		# log the error to the database
 		msg = f'Error loading dataset {dataset_id}: {str(e)}'
-		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
+		logger.error(msg, extra={'token': token})
 
 		return HTTPException(status_code=500, detail=msg)
 
@@ -56,7 +56,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 	except Exception as e:
 		# log the error to the database
 		msg = f'Error creating thumbnail for dataset {dataset_id}: {str(e)}'
-		logger.error(msg, extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id})
+		logger.error(msg, extra={'token': token})
 
 		return HTTPException(status_code=500, detail=msg)
 
@@ -72,7 +72,6 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 
 	try:
 		with use_client(token) as client:
-			print(client.auth.get_session())
 			# check if thumbnail already exists, delete it
 			response = client.table(settings.thumbnail_table).select('*').eq('dataset_id', dataset_id).execute()
 			if len(response.data) > 0:
@@ -95,7 +94,7 @@ def create_thumbnail(dataset_id: int, token: Annotated[str, Depends(oauth2_schem
 	except Exception as e:
 		# log the error to the database
 		msg = f'Error uploading thumbnail for dataset {dataset_id}: {str(e)} file_path: {thumbnail_target_path} filename: {thumbnail_file_name}'
-		logger.error(msg, extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id})
+		logger.error(msg, extra={'token': token})
 
 		return HTTPException(status_code=500, detail=msg)
 

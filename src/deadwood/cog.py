@@ -62,12 +62,12 @@ def _gdal_calculate_cog(tiff_file_path: str, cog_target_path: str, compress="jpe
 
     # apply
     try:
-        logger.info(f'Running gdal_translate with EPSG:3857', extra={'token': token})
+        logger.info(f'Running COG processing with gdal_translate assuming EPSG:3857', extra={'token': token})
         result = subprocess.run(cmd_translate, check=True, capture_output=True, text=True)
         logger.info(f"gdal_translate output:\n{result.stdout}", extra={'token': token})
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error running gdal_translate: {e}", extra={'token': token})
-        logger.info('Retrying with EPSG:3857', extra={'token': token})
+        logger.error(f"Error gdal_translate: {e}", extra={'token': token})
+        logger.info('Retrying setting EPSG:3857', extra={'token': token})
         try:
             cmd_translate.extend(["-a_srs", "EPSG:3857"])
             result = subprocess.run(cmd_translate, check=True, capture_output=True, text=True)
