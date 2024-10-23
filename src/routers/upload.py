@@ -96,12 +96,43 @@ def combine_chunks(
 	# Update dataset entry
 	update_dataset_entry(initial_dataset.id, target_path, sha256, transformed_bounds, token)
 
+	# Update the metadata admin level
+	update_metadata_admin_level(initial_dataset.id, token)
+
 	logger.info(f'Updated dataset entry {initial_dataset} for file {target_path}', extra={'token': token})
 
 	# Clean up the temporary directory
 	shutil.rmtree(tmp_dir)
 
 	logger.info(f'Cleaned up temporary directory {tmp_dir}', extra={'token': token})
+
+
+async def run_combine_chunks_and_shutdown_executor(
+	tmp_dir,
+	total_chunks,
+	filename,
+	target_path,
+	token,
+	initial_dataset,
+):
+	try:
+		# Create a new executor
+		with ProcessPoolExecutor(max_workers=5) as executor:
+			loop = asyncio.get_running_loop()
+			await loop.run_in_executor(
+				executor,
+				combine_chunks,
+				tmp_dir,
+				total_chunks,
+				filename,
+				target_path,
+				token,
+				initial_dataset,
+			)
+		# Executor is automatically shut down when exiting the 'with' block
+	except Exception as e:
+		# Log any exceptions from combine_chunks
+		logger.exception(f'Error in combine_chunks: {e}', extra={'token': token})
 
 
 def compute_sha256(file_path: Path) -> str:
@@ -163,6 +194,52 @@ def update_dataset_entry(dataset_id: int, target_path: Path, sha256: str, bounds
 			raise HTTPException(status_code=400, detail=f'Error updating dataset: {str(e)}')
 
 
+def update_metadata_admin_level(dataset_id: int, token: str):
+	"""
+	Update the admin level information in the metadata table for a given dataset.
+
+	Args:
+		dataset_id (int): The ID of the dataset.
+		token (str): The authentication token.
+	"""
+	try:
+		# Calculate the centroid of the bounding box
+		with use_client(token) as client:
+			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
+			data = Dataset(**response.data[0])
+	except Exception as e:
+		logger.exception(f'Error getting dataset {dataset_id}: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error getting dataset {dataset_id}: {str(e)}')
+
+	# Get the admin tags for the centroid
+	try:
+		(lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
+	except Exception as e:
+		logger.exception(f'Error getting admin tags for dataset {dataset_id}: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error getting admin tags for dataset {dataset_id}: {str(e)}')
+
+	try:
+		with use_client(token) as client:
+			# Update the metadata in the database
+			metadata_update = {
+				'admin_level_1': lvl1,
+				'admin_level_2': lvl2,
+				'admin_level_3': lvl3,
+			}
+			client.table(settings.metadata_table).update(metadata_update).eq('dataset_id', dataset_id).execute()
+
+	except Exception as e:
+		logger.error(
+			f'An error occurred while updating admin level information for dataset_id {dataset_id}: {str(e)}',
+			extra={'token': token, 'dataset_id': dataset_id},
+		)
+	logger.info(
+		f'Updated admin level information for Dataset {dataset_id}',
+		extra={'token': token, 'dataset_id': dataset_id},
+	)
+	return True
+
+
 @router.post('/datasets/chunk')
 async def upload_geotiff_chunk(
 	file: UploadFile,
@@ -209,7 +286,30 @@ async def upload_geotiff_chunk(
 
 		# background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 		# Offload the combine_chunks function to the process pool
-		executor.submit(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
+		# Schedule the async function as a background task
+		asyncio.create_task(
+			run_combine_chunks_and_shutdown_executor(
+				tmp_dir,
+				chunks_total,
+				file_name,
+				target_path,
+				token,
+				initial_dataset,
+			)
+		)
+		# loop = asyncio.get_running_loop()
+		# loop.run_in_executor(
+		# 	executor,
+		# 	combine_chunks,
+		# 	tmp_dir,
+		# 	chunks_total,
+		# 	file_name,
+		# 	target_path,
+		# 	token,
+		# 	initial_dataset,
+		# )
+
+		# executor.submit(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 
 		return initial_dataset
 
@@ -386,27 +486,27 @@ def upsert_metadata(
 		return HTTPException(status_code=400, detail=msg)
 
 	# if the metadata does not have admin level names, query them from OSM
-	if metadata.admin_level_1 is None:
-		# get the bounding box
-		try:
-			with use_client(token) as client:
-				response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
-				data = Dataset(**response.data[0])
+	# if metadata.admin_level_1 is None:
+	# 	# get the bounding box
+	# 	try:
+	# 		with use_client(token) as client:
+	# 			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
+	# 			data = Dataset(**response.data[0])
 
-				# get the tags of the centroid
-				(lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
+	# 			# get the tags of the centroid
+	# 			(lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
 
-				# update the metadata model
-				metadata.admin_level_1 = lvl1
-				metadata.admin_level_2 = lvl2
-				metadata.admin_level_3 = lvl3
+	# 			# update the metadata model
+	# 			metadata.admin_level_1 = lvl1
+	# 			metadata.admin_level_2 = lvl2
+	# 			metadata.admin_level_3 = lvl3
 
-		except Exception as e:
-			msg = f'An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}'
-			logger.error(
-				msg,
-				extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
-			)
+	# 	except Exception as e:
+	# 		msg = f'An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}'
+	# 		logger.error(
+	# 			msg,
+	# 			extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
+	# 		)
 
 	try:
 		# upsert the given metadata entry with the merged data
