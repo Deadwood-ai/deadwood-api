@@ -7,13 +7,13 @@ import rasterio
 from rasterio.env import Env
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
-
+from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 
 
-from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum, LabelObject
+from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum, UserLabelObject
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
@@ -284,7 +284,7 @@ async def upload_geotiff_chunk(
 
 		initial_dataset = create_initial_dataset_entry(file_name, file_alias, user.id, copy_time, token)
 
-		# Schedule the async function as a background tas
+		# Schedule the async function as a background task
 		asyncio.create_task(
 			run_combine_chunks_and_shutdown_executor(
 				tmp_dir,
@@ -301,7 +301,7 @@ async def upload_geotiff_chunk(
 	return {'message': f'Chunk {chunk_index} of {chunks_total} received'}
 
 
-@router.put('/datasets/{dataset_id}/label-object')
+@router.post('/datasets/{dataset_id}/label-object')
 async def upload_label_object(
 	file: UploadFile,
 	dataset_id: int,
@@ -324,9 +324,13 @@ async def upload_label_object(
 	if not (settings.label_objects_path / str(dataset_id)).exists():
 		(settings.label_objects_path / str(dataset_id)).mkdir(parents=True, exist_ok=True)
 	# count number of files in the folder
-	num_files = len(list((Path(settings.label_objects_path) / str(dataset_id)).glob('*'))) + 1
+	# num_files = len(list((Path(settings.label_objects_path) / str(dataset_id)).glob('*'))) + 1
 
-	target_path = settings.label_objects_path / str(dataset_id) / f'{file_alias}_{num_files}.{file_type}'
+	target_path = (
+		settings.label_objects_path
+		/ str(dataset_id)
+		/ f'{file_alias}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.{file_type}'
+	)
 
 	try:
 		with target_path.open('wb') as buffer:
@@ -338,7 +342,7 @@ async def upload_label_object(
 	logger.info(f'Saved label object to {target_path}', extra={'token': token})
 
 	# insert the label object into the database
-	label_object = LabelObject(
+	label_object = UserLabelObject(
 		dataset_id=dataset_id,
 		user_id=user_id,
 		file_type=file_type,
