@@ -40,7 +40,7 @@ class StatusEnum(str, Enum):
 	audit_failed = 'audit_failed'
 
 
-class DataAccessEnum(str, Enum):
+class DatasetAccessEnum(str, Enum):
 	public = 'public'
 	private = 'private'
 	viewonly = 'viewonly'
@@ -211,7 +211,7 @@ class MetadataPayloadData(PartialModelMixin, BaseModel):
 	# now the metadata
 	name: Optional[str] = None
 	# license: Optional[LicenseEnum] = None
-	data_access: Optional[DataAccessEnum] = None
+	data_access: Optional[DatasetAccessEnum] = None
 	platform: Optional[PlatformEnum] = None
 	project_id: Optional[str] = None
 	authors: Optional[str] = None
@@ -245,7 +245,7 @@ class Metadata(MetadataPayloadData):
 
 	# make some field non-optional
 	name: str
-	data_access: DataAccessEnum
+	data_access: DatasetAccessEnum
 	# license: LicenseEnum
 	platform: PlatformEnum
 	# only the aquisition_year is necessary
@@ -277,7 +277,7 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
 PartialLabelPayloadData = LabelPayloadData.model_as_partial()
 
 
-class LabelObject(BaseModel):
+class UserLabelObject(BaseModel):
 	dataset_id: int
 	user_id: str
 	file_type: str
