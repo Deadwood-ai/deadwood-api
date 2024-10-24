@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 	archive_dir: str = 'archive'
 	cog_dir: str = 'cogs'
 	thumbnails_dir: str = 'thumbnails'
+	label_objects_dir: str = 'label_objects'
 
 	# Temporary processing directory
 	tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='cog_processing_')))
@@ -52,6 +53,7 @@ class Settings(BaseSettings):
 	labels_table: str = 'v1_labels'
 	thumbnail_table: str = 'v1_thumbnails'
 	logs_table: str = 'logs'
+	label_objects_table: str = 'v1_label_objects'
 
 	# queue settings
 	queue_table: str = 'v1_queue'
@@ -86,6 +88,14 @@ class Settings(BaseSettings):
 	@property
 	def thumbnail_path(self) -> Path:
 		path = self.base_path / self.thumbnails_dir
+		if not path.exists():
+			path.mkdir(parents=True, exist_ok=True)
+
+		return path
+
+	@property
+	def label_objects_path(self) -> Path:
+		path = self.base_path / self.label_objects_dir
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 

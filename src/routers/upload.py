@@ -8,11 +8,12 @@ from rasterio.env import Env
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 
+
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 
 
-from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum
+from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum, LabelObject
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
@@ -22,7 +23,6 @@ from .. import monitoring
 # Add this import at the top of the file
 import tempfile
 import shutil
-from typing import Dict
 
 # create the router for the upload
 router = APIRouter()
@@ -284,9 +284,7 @@ async def upload_geotiff_chunk(
 
 		initial_dataset = create_initial_dataset_entry(file_name, file_alias, user.id, copy_time, token)
 
-		# background_tasks.add_task(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
-		# Offload the combine_chunks function to the process pool
-		# Schedule the async function as a background task
+		# Schedule the async function as a background tas
 		asyncio.create_task(
 			run_combine_chunks_and_shutdown_executor(
 				tmp_dir,
@@ -297,23 +295,74 @@ async def upload_geotiff_chunk(
 				initial_dataset,
 			)
 		)
-		# loop = asyncio.get_running_loop()
-		# loop.run_in_executor(
-		# 	executor,
-		# 	combine_chunks,
-		# 	tmp_dir,
-		# 	chunks_total,
-		# 	file_name,
-		# 	target_path,
-		# 	token,
-		# 	initial_dataset,
-		# )
-
-		# executor.submit(combine_chunks, tmp_dir, chunks_total, file_name, target_path, token, initial_dataset)
 
 		return initial_dataset
 
 	return {'message': f'Chunk {chunk_index} of {chunks_total} received'}
+
+
+@router.put('/datasets/{dataset_id}/label-object')
+async def upload_label_object(
+	file: UploadFile,
+	dataset_id: int,
+	user_id: Annotated[str, Form()],
+	file_type: Annotated[str, Form()],
+	file_alias: Annotated[str, Form()],
+	label_description: Annotated[str, Form()],
+	token: Annotated[str, Depends(oauth2_scheme)],
+):
+	"""
+	Upload a label object.
+	"""
+
+	user = verify_token(token)
+	if not user:
+		raise HTTPException(status_code=401, detail='Invalid token')
+	logger.info(f'Received label object for dataset {dataset_id} from user {user_id}', extra={'token': token})
+
+	# create folder if not exists settings.labels_objects_path / dataset_id
+	if not (settings.label_objects_path / str(dataset_id)).exists():
+		(settings.label_objects_path / str(dataset_id)).mkdir(parents=True, exist_ok=True)
+	# count number of files in the folder
+	num_files = len(list((Path(settings.label_objects_path) / str(dataset_id)).glob('*'))) + 1
+
+	target_path = settings.label_objects_path / str(dataset_id) / f'{file_alias}_{num_files}.{file_type}'
+
+	try:
+		with target_path.open('wb') as buffer:
+			buffer.write(await file.read())
+	except Exception as e:
+		logger.exception(f'Error saving label object to {target_path}: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error saving label object to {target_path}: {str(e)}')
+
+	logger.info(f'Saved label object to {target_path}', extra={'token': token})
+
+	# insert the label object into the database
+	label_object = LabelObject(
+		dataset_id=dataset_id,
+		user_id=user_id,
+		file_type=file_type,
+		file_alias=file_alias,
+		file_path=str(target_path),
+		label_description=label_description,
+		audited=False,
+	)
+
+	try:
+		with use_client(token) as client:
+			send_data = {k: v for k, v in label_object.model_dump().items() if v is not None}
+			print('send_data:', send_data)
+			print('table:', settings.label_objects_table)
+			response = client.table(settings.label_objects_table).insert(send_data).execute()
+			logger.info(
+				f'Inserted label object into database: {response.data[0]}',
+				extra={'token': token, 'dataset_id': dataset_id, 'user_id': user_id},
+			)
+	except Exception as e:
+		logger.exception(f'Error inserting label object into database: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error inserting label object into database: {str(e)}')
+
+	return label_object
 
 
 # Main routes for the logic
