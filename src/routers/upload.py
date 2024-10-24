@@ -9,7 +9,7 @@ from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from datetime import datetime
 
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form, BackgroundTasks
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -324,7 +324,6 @@ async def upload_label_object(
 	if not (settings.label_objects_path / str(dataset_id)).exists():
 		(settings.label_objects_path / str(dataset_id)).mkdir(parents=True, exist_ok=True)
 	# count number of files in the folder
-	# num_files = len(list((Path(settings.label_objects_path) / str(dataset_id)).glob('*'))) + 1
 
 	target_path = (
 		settings.label_objects_path
@@ -537,29 +536,6 @@ def upsert_metadata(
 
 		logger.exception(msg, extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
 		return HTTPException(status_code=400, detail=msg)
-
-	# if the metadata does not have admin level names, query them from OSM
-	# if metadata.admin_level_1 is None:
-	# 	# get the bounding box
-	# 	try:
-	# 		with use_client(token) as client:
-	# 			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
-	# 			data = Dataset(**response.data[0])
-
-	# 			# get the tags of the centroid
-	# 			(lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
-
-	# 			# update the metadata model
-	# 			metadata.admin_level_1 = lvl1
-	# 			metadata.admin_level_2 = lvl2
-	# 			metadata.admin_level_3 = lvl3
-
-	# 	except Exception as e:
-	# 		msg = f'An error occurred while querying OSM for admin level names of dataset_id: {dataset_id}: {str(e)}'
-	# 		logger.error(
-	# 			msg,
-	# 			extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},
-	# 		)
 
 	try:
 		# upsert the given metadata entry with the merged data
