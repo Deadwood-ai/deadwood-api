@@ -40,6 +40,12 @@ class StatusEnum(str, Enum):
 	audit_failed = 'audit_failed'
 
 
+class DatasetAccessEnum(str, Enum):
+	public = 'public'
+	private = 'private'
+	viewonly = 'viewonly'
+
+
 class LabelSourceEnum(str, Enum):
 	visual_interpretation = 'visual_interpretation'
 	model_prediction = 'model_prediction'
@@ -204,7 +210,8 @@ class Cog(BaseModel):
 class MetadataPayloadData(PartialModelMixin, BaseModel):
 	# now the metadata
 	name: Optional[str] = None
-	license: Optional[LicenseEnum] = None
+	# license: Optional[LicenseEnum] = None
+	data_access: Optional[DatasetAccessEnum] = None
 	platform: Optional[PlatformEnum] = None
 	project_id: Optional[str] = None
 	authors: Optional[str] = None
@@ -238,7 +245,8 @@ class Metadata(MetadataPayloadData):
 
 	# make some field non-optional
 	name: str
-	license: LicenseEnum
+	data_access: DatasetAccessEnum
+	# license: LicenseEnum
 	platform: PlatformEnum
 	# only the aquisition_year is necessary
 	aquisition_year: int
@@ -267,6 +275,16 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
 
 
 PartialLabelPayloadData = LabelPayloadData.model_as_partial()
+
+
+class UserLabelObject(BaseModel):
+	dataset_id: int
+	user_id: str
+	file_type: str
+	file_alias: str
+	file_path: str
+	label_description: str
+	audited: bool
 
 
 class Label(LabelPayloadData):
