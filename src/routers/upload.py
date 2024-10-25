@@ -354,8 +354,6 @@ async def upload_label_object(
 	try:
 		with use_client(token) as client:
 			send_data = {k: v for k, v in label_object.model_dump().items() if v is not None}
-			print('send_data:', send_data)
-			print('table:', settings.label_objects_table)
 			response = client.table(settings.label_objects_table).insert(send_data).execute()
 			logger.info(
 				f'Inserted label object into database: {response.data[0]}',
