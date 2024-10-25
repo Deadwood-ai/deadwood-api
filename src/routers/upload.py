@@ -345,8 +345,8 @@ async def upload_label_object(
 		dataset_id=dataset_id,
 		user_id=user_id,
 		file_type=file_type,
-		file_alias=file_alias,
-		file_path=str(target_path),
+		file_alias=file_alias,  # alias is the original filename, as in the file_alias of the dataset
+		file_path=str(target_path),  # path is the path to the label object on the server
 		label_description=label_description,
 		audited=False,
 	)
