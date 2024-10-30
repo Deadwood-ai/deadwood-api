@@ -8,6 +8,8 @@ from rasterio.env import Env
 from concurrent.futures import ProcessPoolExecutor
 import asyncio
 from datetime import datetime
+from shutil import copyfileobj
+
 
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
@@ -68,7 +70,7 @@ def combine_chunks(
 		for i in range(int(total_chunks)):
 			chunk_file = tmp_dir / f'chunk_{i}'
 			with chunk_file.open('rb') as infile:
-				outfile.write(infile.read())
+				copyfileobj(infile, outfile)  # 64KB buffer
 			chunk_file.unlink()  # Remove the chunk file after combining
 
 	logger.info(f'Combined chunks for file {filename}', extra={'token': token})
