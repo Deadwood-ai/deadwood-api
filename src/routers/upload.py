@@ -65,23 +65,28 @@ def combine_chunks(
 ) -> None:
 	"""Combine all chunks into a single file and process it."""
 	logger.info(f'Combining chunks for file {filename}', extra={'token': token})
-	combined_file = tmp_dir / filename
-	with combined_file.open('wb') as outfile:
+
+	# Initialize SHA256 hash object
+	sha256_hash = hashlib.sha256()
+
+	# Write directly to the target path
+	with target_path.open('wb') as outfile:
 		for i in range(int(total_chunks)):
 			chunk_file = tmp_dir / f'chunk_{i}'
 			with chunk_file.open('rb') as infile:
-				copyfileobj(infile, outfile)  # 64KB buffer
+				while True:
+					# Read in larger chunks to reduce I/O operations
+					data = infile.read(1024 * 1024)  # 1MB buffer size
+					if not data:
+						break
+					outfile.write(data)
+					sha256_hash.update(data)
 			chunk_file.unlink()  # Remove the chunk file after combining
 
 	logger.info(f'Combined chunks for file {filename}', extra={'token': token})
-	# Move the combined file to the target path
-	shutil.move(str(combined_file), str(target_path))
-
-	logger.info(f'Moved combined file to target path {target_path}', extra={'token': token})
 
 	# Compute SHA256 checksum
-	sha256 = compute_sha256(target_path)
-
+	sha256 = sha256_hash.hexdigest()
 	logger.info(f'Computed SHA256 checksum {sha256} for file {target_path}', extra={'token': token})
 
 	# Open with rasterio and get bounds
@@ -105,7 +110,6 @@ def combine_chunks(
 
 	# Clean up the temporary directory
 	shutil.rmtree(tmp_dir)
-
 	logger.info(f'Cleaned up temporary directory {tmp_dir}', extra={'token': token})
 
 
@@ -421,13 +425,20 @@ async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_
 	# start a timer
 	t1 = time.time()
 
-	# save the file
-	with target_path.open('wb') as buffer:
-		buffer.write(await file.read())
+	# Stream the file in chunks instead of loading it all at once
+	sha256_hash = hashlib.sha256()
+	chunk_size = 4 * 1024 * 1024  # 4MB chunks for better performance with large files
 
-	# create the checksum
-	with target_path.open('rb') as f:
-		sha256 = hashlib.sha256(f.read()).hexdigest()
+	try:
+		with target_path.open('wb') as buffer:
+			while chunk := await file.read(chunk_size):
+				buffer.write(chunk)
+				sha256_hash.update(chunk)
+
+		sha256 = sha256_hash.hexdigest()
+	except Exception as e:
+		logger.exception(f'Error saving file: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error saving file: {str(e)}')
 
 	# try to open with rasterio
 	with rasterio.open(str(target_path), 'r') as src:
