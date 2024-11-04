@@ -1,5 +1,6 @@
 # testdata
 test_data/*
+model/*
 
 .cursorrules
 # Byte-compiled / optimized / DLL files

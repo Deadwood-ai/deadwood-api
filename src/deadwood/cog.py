@@ -90,7 +90,7 @@ def _gdal_calculate_cog(
 		'ALL_CPUS',
 		'--config',
 		'GDAL_CACHEMAX',
-		'24576',
+		'32768',
 		'--config',
 		'GDAL_GTIFF_SRS_SOURCE',
 		'EPSG',

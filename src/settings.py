@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 	storage_server_username: str = ''
 	storage_server_data_path: str = ''
 
+	# api endpoint
+	api_endpoint: str = 'https://data.deadtrees.earth/api/v1/'
+
 	# processor settings
 	processor_username: str = 'processor@deadtrees.earth'
 	processor_password: str = 'processor'

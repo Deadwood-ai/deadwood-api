@@ -14,3 +14,4 @@ overpy
 pillow
 geopandas
 paramiko
+requests
