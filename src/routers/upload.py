@@ -19,8 +19,9 @@ from ..models import Metadata, MetadataPayloadData, Dataset, StatusEnum, UserLab
 from ..supabase import use_client, verify_token
 from ..settings import settings
 from ..logger import logger
-from ..deadwood.osm import get_admin_tags
 from .. import monitoring
+from ..services.upload_service import UploadService
+from ..utils.update_metadata_admin_level import update_metadata_admin_level
 
 # Add this import at the top of the file
 import tempfile
@@ -200,52 +201,6 @@ def update_dataset_entry(dataset_id: int, target_path: Path, sha256: str, bounds
 			raise HTTPException(status_code=400, detail=f'Error updating dataset: {str(e)}')
 
 
-def update_metadata_admin_level(dataset_id: int, token: str):
-	"""
-	Update the admin level information in the metadata table for a given dataset.
-
-	Args:
-		dataset_id (int): The ID of the dataset.
-		token (str): The authentication token.
-	"""
-	try:
-		# Calculate the centroid of the bounding box
-		with use_client(token) as client:
-			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
-			data = Dataset(**response.data[0])
-	except Exception as e:
-		logger.exception(f'Error getting dataset {dataset_id}: {str(e)}', extra={'token': token})
-		raise HTTPException(status_code=400, detail=f'Error getting dataset {dataset_id}: {str(e)}')
-
-	# Get the admin tags for the centroid
-	try:
-		(lvl1, lvl2, lvl3) = get_admin_tags(data.centroid)
-	except Exception as e:
-		logger.exception(f'Error getting admin tags for dataset {dataset_id}: {str(e)}', extra={'token': token})
-		raise HTTPException(status_code=400, detail=f'Error getting admin tags for dataset {dataset_id}: {str(e)}')
-
-	try:
-		with use_client(token) as client:
-			# Update the metadata in the database
-			metadata_update = {
-				'admin_level_1': lvl1,
-				'admin_level_2': lvl2,
-				'admin_level_3': lvl3,
-			}
-			client.table(settings.metadata_table).update(metadata_update).eq('dataset_id', dataset_id).execute()
-
-	except Exception as e:
-		logger.error(
-			f'An error occurred while updating admin level information for dataset_id {dataset_id}: {str(e)}',
-			extra={'token': token, 'dataset_id': dataset_id},
-		)
-	logger.info(
-		f'Updated admin level information for Dataset {dataset_id}',
-		extra={'token': token, 'dataset_id': dataset_id},
-	)
-	return True
-
-
 @router.post('/datasets/chunk')
 async def upload_geotiff_chunk(
 	file: UploadFile,
@@ -262,35 +217,32 @@ async def upload_geotiff_chunk(
 	This endpoint receives chunks of a file, saves them temporarily,
 	and combines them when all chunks are received.
 	"""
-	# Verify the token
+	# Verify token
 	user = verify_token(token)
 	if not user:
 		raise HTTPException(status_code=401, detail='Invalid token')
 
-	# Create a temporary directory using the upload_id
+	# Create temporary directory
 	tmp_dir = Path(tempfile.gettempdir()) / upload_id
 	tmp_dir.mkdir(parents=True, exist_ok=True)
 
-	logger.info(f'Received chunk {chunk_index} of {chunks_total} for upload {upload_id}', extra={'token': token})
-
-	# Save the chunk
+	# Save chunk
 	chunk_file = tmp_dir / f'chunk_{chunk_index}'
 	with chunk_file.open('wb') as buffer:
 		content = await file.read()
 		buffer.write(content)
 
-	logger.info(f'Saved chunk {chunk_index} of {chunks_total} for upload {upload_id}', extra={'token': token})
-
-	# If this is the last chunk, start the combination process
+	# If last chunk, process file
 	if int(chunk_index) == int(chunks_total) - 1:
 		uid = str(uuid.uuid4())
 		file_name = f'{uid}_{Path(filename).stem}.tif'
 		target_path = settings.archive_path / file_name
-		file_alias = file.filename
 
-		initial_dataset = create_initial_dataset_entry(file_name, file_alias, user.id, copy_time, token)
+		# Use upload service
+		upload_service = UploadService(token)
+		initial_dataset = upload_service.create_dataset_entry(target_path, file.filename, user.id, copy_time)
 
-		# Schedule the async function as a background task
+		# Schedule combination task
 		asyncio.create_task(
 			run_combine_chunks_and_shutdown_executor(
 				tmp_dir,
