@@ -3,13 +3,10 @@ from fastapi import HTTPException
 from pathlib import Path
 
 
-from src.models import StatusEnum
-
-
 from .supabase import use_client, login, verify_token
 from .processing import update_status
-from .models import QueueTask, Dataset
-import settings
+from .models import QueueTask, Dataset, StatusEnum
+from .settings import settings
 from .logger import logger
 
 
