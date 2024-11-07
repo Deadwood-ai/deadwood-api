@@ -8,6 +8,7 @@ from .logger import logger
 import shutil
 from .deadwood_segmentation import segment_deadwood
 
+
 def current_running_tasks(token: str) -> int:
 	"""Get the number of currently actively processing tasks from supabase.
 

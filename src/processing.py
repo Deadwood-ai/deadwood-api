@@ -282,7 +282,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 
 	thumbnail = Thumbnail(**meta)
 
-		# check if session is still active and token is valid
+	# check if session is still active and token is valid
 	token = login(settings.processor_username, settings.processor_password)
 	user = verify_token(token)
 	if not user:
