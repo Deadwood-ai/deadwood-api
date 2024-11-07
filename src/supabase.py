@@ -34,7 +34,7 @@ def login(user: str, password: str) -> str:
 	)
 
 	current_time = int(time.time())
-	threshold = 300  # 5 minutes before expiration
+	threshold = 60 * 20  # 20 minutes before expiration
 
 	if cached_session:
 		print('found cached session')

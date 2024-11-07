@@ -27,10 +27,10 @@ def manual_upload(file_path: Path, token: str, user_id: Optional[str] = None) ->
 	# Generate unique filename
 	uid = str(uuid.uuid4())
 	new_filename = f'{uid}_{Path(file_path).stem}.tif'
-	target_path = settings.archive_path / new_filename
+	# target_path = settings.archive_path / new_filename
 
 	# Push file to storage server using the existing mechanism
-	logger.info(f'Pushing file to storage: {target_path}', extra={'token': token})
+	# logger.info(f'Pushing file to storage: {target_path}', extra={'token': token})
 	t1 = time.time()
 	remote_path = f'{settings.storage_server_data_path}/archive/{new_filename}'
 	print(f'Pushing file to storage: {remote_path}')

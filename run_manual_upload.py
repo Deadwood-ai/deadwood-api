@@ -1,4 +1,6 @@
 import os
+os.environ['SSH_PRIVATE_KEY_PATH'] = '/home/jj1049/.ssh/id_rsa'
+
 import argparse
 from pathlib import Path
 import requests
@@ -11,7 +13,21 @@ from src.models import MetadataPayloadData
 from src.utils.update_metadata_admin_level import update_metadata_admin_level
 
 
-def main():
+
+def main(year):
+	"""
+	Upload a single file to the storage server and update the metadata and process status.
+	"""
+	print(f'Uploading file for year: {year}')
+
+	AQUISITION_YEAR = str(year)
+	AUTHOR = 'Naturpark Schwarzwald'
+	DATA_ACCESS = 'public'
+	PLATFORM = 'airborne'
+	FILE_ALIAS = f'TDOP_{year}_123_jpg85_btif_mosaic.tif'
+	FILE_PATH = '/mnt/gsdata/projects/deadtrees/drone_campaigns/naturpark_schwarzwald/blackforestnationalparktimeseries/TDOP_mosaic/' + FILE_ALIAS
+	PROCESS = 'all'
+
 	parser = argparse.ArgumentParser(description='Manually upload a file to the storage server')
 	parser.add_argument('--file_path', type=str, help='Path to the file to upload')
 	parser.add_argument('--authors', type=str, help='Comma separated list of authors')
@@ -42,23 +58,33 @@ def main():
 
 	# Upload the file
 	dataset = manual_upload(
-		Path(args.file_path),
+		# Path(args.file_path),
+		Path(FILE_PATH),
 		token=token,
 		user_id=user.id,  # Pass the verified user's ID
 	)
 	time.sleep(1)
 	print('adding metadata for dataset:', dataset)
 
+	# metadata = MetadataPayloadData(
+	# 	name=dataset.file_alias,
+	# 	authors=args.authors,
+	# 	data_access=args.data_access,
+	# 	platform=args.platform,
+	# 	aquisition_year=args.aquisition_year,
+	# 	aquisition_month=args.aquisition_month,
+	# 	aquisition_day=args.aquisition_day,
+	# 	doi=args.doi,
+	# 	additional_information=args.additional_information,
+	# )
 	metadata = MetadataPayloadData(
-		name=dataset.file_alias,
-		authors=args.authors,
-		data_access=args.data_access,
-		platform=args.platform,
-		aquisition_year=args.aquisition_year,
-		aquisition_month=args.aquisition_month,
-		aquisition_day=args.aquisition_day,
-		doi=args.doi,
-		additional_information=args.additional_information,
+		name=FILE_ALIAS,
+		authors=AUTHOR,
+		data_access=DATA_ACCESS,
+		platform=PLATFORM,
+		aquisition_year=AQUISITION_YEAR,
+		# aquisition_month=AQUISITION_MONTH,
+		# aquisition_day=AQUISITION_DAY,
 	)
 	print('metadata:', metadata)
 
@@ -82,7 +108,8 @@ def main():
 		res = requests.put(
 			f'{settings.api_endpoint}/datasets/{dataset.id}/process',
 			params={
-				'task_type': args.process  # 'cog', 'thumbnail', or 'all'
+				# 'task_type': args.process  # 'cog', 'thumbnail', or 'all'
+				'task_type': PROCESS
 			},
 			headers={'Authorization': f'Bearer {token}'},
 		)
@@ -92,5 +119,7 @@ def main():
 		print(f'Error updating process: {e}')
 
 
+
 if __name__ == '__main__':
-	main()
+	for year in range(2015, 2024):
+		main(year)
