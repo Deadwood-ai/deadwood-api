@@ -6,7 +6,7 @@ from .supabase import use_client, login, verify_token
 from .processing import process_cog, process_thumbnail
 from .logger import logger
 import shutil
-
+from .deadwood_segmentation import segment_deadwood
 
 def current_running_tasks(token: str) -> int:
 	"""Get the number of currently actively processing tasks from supabase.
@@ -56,12 +56,12 @@ def get_next_task(token: str) -> QueueTask:
 	return QueueTask(**response.data[0])
 
 
-def is_dataset_uploaded(task: QueueTask, token: str) -> bool:
+def is_dataset_uploaded_or_processed(task: QueueTask, token: str) -> bool:
 	with use_client(token) as client:
 		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
 		msg = f'dataset status: {response.data[0]["status"]}'
 		logger.info(msg, extra={'token': token})
-	if response.data[0]['status'] == StatusEnum.uploaded:
+	if response.data[0]['status'] in [StatusEnum.uploaded, StatusEnum.processed]:
 		return True
 	return False
 
@@ -77,6 +77,8 @@ def process_task(task: QueueTask, token: str):
 
 		if task.task_type in ['thumbnail', 'all']:
 			process_thumbnail(task, settings.tmp_processing_path)
+		if task.task_type in ['deadwood_segmentation', 'all']:
+			segment_deadwood(task, token)
 
 		# delete the task from the queue if processing was successful
 		with use_client(token) as client:
@@ -118,7 +120,7 @@ def background_process():
 	if num_of_running < settings.concurrent_tasks:
 		# get the next task
 		task = get_next_task(token)
-		is_uploaded = is_dataset_uploaded(task, token)
+		is_uploaded = is_dataset_uploaded_or_processed(task, token)
 		if task is not None and is_uploaded:
 			logger.info(
 				f'Start a new background process for queued task: {task}.',

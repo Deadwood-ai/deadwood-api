@@ -201,6 +201,12 @@ def process_cog(task: QueueTask, temp_dir: Path):
 	# save the metadata to the database
 	cog = Cog(**meta)
 
+	# check if session is still active and token is valid
+	token = login(settings.processor_username, settings.processor_password)
+	user = verify_token(token)
+	if not user:
+		return HTTPException(status_code=401, detail='Invalid token')
+
 	try:
 		with use_client(token) as client:
 			send_data = {k: v for k, v in cog.model_dump().items() if v is not None}
@@ -253,6 +259,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 	pull_file_from_storage_server(storage_server_file_path, str(input_path), token)
 
 	t1 = time.time()
+	logger.info(f'Calculate Thumbnail for dataset {dataset.id}', extra={'token': token})
 	calculate_thumbnail(str(input_path), str(output_path))
 	logger.info(
 		f'Thumbnail generated for dataset {dataset.id}',
@@ -274,6 +281,12 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 	)
 
 	thumbnail = Thumbnail(**meta)
+
+		# check if session is still active and token is valid
+	token = login(settings.processor_username, settings.processor_password)
+	user = verify_token(token)
+	if not user:
+		return HTTPException(status_code=401, detail='Invalid token')
 
 	try:
 		with use_client(token) as client:

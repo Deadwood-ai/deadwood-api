@@ -30,6 +30,8 @@ class StatusEnum(str, Enum):
 	uploading = 'uploading'
 	uploaded = 'uploaded'
 	processing = 'processing'
+	deadwood_prediction = 'deadwood_prediction'
+	deadwood_errored = 'deadwood_errored'
 	errored = 'errored'
 	cog_processing = 'cog_processing'
 	cog_errored = 'errored'
@@ -71,6 +73,7 @@ class ProcessOptions(BaseSettings):
 class TaskTypeEnum(str, Enum):
 	cog = 'cog'
 	thumbnail = 'thumbnail'
+	deadwood_segmentation = 'deadwood_segmentation'
 	all = 'all'
 
 
@@ -267,7 +270,7 @@ class LabelPayloadData(PartialModelMixin, BaseModel):
 
 	"""
 
-	aoi: MultiPolygonModel
+	aoi: Optional[MultiPolygonModel] = None
 	label: Optional[MultiPolygonModel]
 	label_source: LabelSourceEnum
 	label_quality: int
