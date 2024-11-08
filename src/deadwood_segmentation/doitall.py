@@ -1,4 +1,5 @@
 import os
+from json import loads
 
 import geopandas as gpd
 import numpy as np
@@ -204,3 +205,62 @@ def inference_forestcover(input_tif: str):
 
 def save_poly(filename, poly, crs):
 	gpd.GeoDataFrame(dict(geometry=poly), crs=crs).to_file(filename)
+
+
+def transform_mask(polygons, image_path):
+	"""Transform polygons to the CRS of the image"""
+	with rasterio.open(image_path) as src:
+		deadwood_gdf = gpd.GeoDataFrame(
+			geometry=polygons,
+			crs=src.crs,
+		)
+		deadwood_gdf = deadwood_gdf.to_crs('EPSG:4326')
+		geojson = loads(deadwood_gdf.geometry.to_json())
+
+		labels = {
+			'type': 'MultiPolygon',
+			'coordinates': [feature['geometry']['coordinates'] for feature in geojson['features']],
+		}
+	return labels
+
+
+def extract_bbox(image_path: str) -> dict:
+	"""
+	Extract bounding box from raster file and return as GeoJSON MultiPolygon in EPSG:4326
+
+	Args:
+	    image_path (str): Path to the raster file
+
+	Returns:
+	    dict: GeoJSON MultiPolygon of the bounding box in WGS84 projection
+	"""
+	with rasterio.open(image_path) as src:
+		bounds = src.bounds
+
+		# Create polygon from bounds
+		bbox_poly = Polygon(
+			[
+				[bounds.left, bounds.top],  # top-left
+				[bounds.right, bounds.top],  # top-right
+				[bounds.right, bounds.bottom],  # bottom-right
+				[bounds.left, bounds.bottom],  # bottom-left
+				[bounds.left, bounds.top],  # close the polygon
+			]
+		)
+
+		# Convert to GeoDataFrame with source CRS
+		bbox_gdf = gpd.GeoDataFrame(geometry=[bbox_poly], crs=src.crs)
+
+		# Reproject to WGS84 if needed
+		if src.crs != 'EPSG:4326':
+			bbox_gdf = bbox_gdf.to_crs('EPSG:4326')
+
+		# Convert coordinates to lists instead of tuples
+		coords = [list(coord) for coord in bbox_gdf.geometry.iloc[0].exterior.coords[:]]
+
+		# Convert to required MultiPolygon GeoJSON format
+		bbox_geojson = {
+			'type': 'MultiPolygon',
+			'coordinates': [[coords]],
+		}
+	return bbox_geojson
