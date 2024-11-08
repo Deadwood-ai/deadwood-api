@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y gdal-bin libgdal-dev && \
     pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
 
 # install everything
-COPY requirements_api.txt .
+COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install -r requirements_api.txt && \
-    rm requirements_api.txt
+    pip install -r requirements.txt && \
+    rm requirements.txt
 
 # create a folder for the application
 RUN mkdir -p /app/src

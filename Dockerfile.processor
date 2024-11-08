@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y openssh-server gdal-bin libgdal-dev && 
     pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
 
 # install everything
-COPY requirements_processor.txt requirements_processor.txt
+COPY requirements.txt requirements.txt
 RUN pip install --upgrade pip && \
-    pip install -r requirements_processor.txt && \
-    rm requirements_processor.txt
+    pip install -r requirements.txt && \
+    rm requirements.txt
 
 # create a folder for the application
 RUN mkdir -p /app/src
