@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
 	# api endpoint
 	api_endpoint: str = 'https://data.deadtrees.earth/api/v1/'
+	api_endpoint_datasets: str = api_endpoint + 'datasets/'
 
 	# processor settings
 	processor_username: str = 'processor@deadtrees.earth'

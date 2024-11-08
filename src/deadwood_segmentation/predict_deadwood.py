@@ -33,7 +33,12 @@ def run_deadwood_inference(dataset_id, file_path):
 		'model_prediction',
 		3,
 	)
-	print(res)
+	if res.status_code == 200:
+		logger.info('Uploaded to supabase')
+	else:
+		logger.error(f'Error uploading to supabase: {res.json()}')
+		return HTTPException(status_code=500, detail='Error uploading to supabase')
+
 	logger.info('Inference deadwood Done')
 
 

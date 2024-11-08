@@ -9,6 +9,12 @@ services:
       resources:
         limits:
           cpus: '64'
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    runtime: nvidia
     volumes:
       - ./data:/data
       - ./src:/app/src

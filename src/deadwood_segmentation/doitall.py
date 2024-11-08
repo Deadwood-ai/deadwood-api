@@ -1,5 +1,5 @@
 import os
-from json import loads
+from json import loads, dumps
 
 import geopandas as gpd
 import numpy as np
@@ -10,7 +10,8 @@ import torch
 import torch.nn as nn
 from safetensors.torch import load_model
 from shapely.affinity import affine_transform, translate
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon, mapping
+import cv2
 
 # from tcd.tcd_pipeline.pipeline import Pipeline
 from torch.utils.data import DataLoader
@@ -22,8 +23,7 @@ from .unet_model import UNet
 TCD_RESOLUTION = 0.1  # m -> tree crown detection only works as 10cm
 TCD_THRESHOLD = 200
 DEADWOOD_THRESHOLD = 0.5
-DEADWOOD_MODEL_PATH = './model.safetensors'
-
+DEADWOOD_MODEL_PATH = '/app/src/deadwood_segmentation/model.safetensors'
 TEMP_DIR = 'temp'
 os.makedirs(TEMP_DIR, exist_ok=True)
 
@@ -133,6 +133,7 @@ def inference_deadwood(input_tif: str):
 
 	# preferably use GPU
 	device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+	print(f'Using device: {device}')
 
 	# model with three input channels (RGB)
 	model = UNet(
@@ -207,21 +208,33 @@ def save_poly(filename, poly, crs):
 	gpd.GeoDataFrame(dict(geometry=poly), crs=crs).to_file(filename)
 
 
-def transform_mask(polygons, image_path):
-	"""Transform polygons to the CRS of the image"""
+def transform_mask(mask, image_path):
+	"""
+	transform a mask to the crs of the passed image path
+	"""
 	with rasterio.open(image_path) as src:
-		deadwood_gdf = gpd.GeoDataFrame(
-			geometry=polygons,
-			crs=src.crs,
-		)
-		deadwood_gdf = deadwood_gdf.to_crs('EPSG:4326')
-		geojson = loads(deadwood_gdf.geometry.to_json())
+		gdf = gpd.GeoDataFrame(geometry=[MultiPolygon(mask)], crs=src.crs)
+		gdf = gdf.to_crs(epsg=4326)
+		polygons = mapping(gdf.geometry.iloc[0])
+		polygons_str = loads(dumps(polygons))
+	return polygons_str
 
-		labels = {
-			'type': 'MultiPolygon',
-			'coordinates': [feature['geometry']['coordinates'] for feature in geojson['features']],
-		}
-	return labels
+
+# def transform_mask(polygons, image_path):
+# 	"""Transform polygons to the CRS of the image"""
+# 	with rasterio.open(image_path) as src:
+# 		deadwood_gdf = gpd.GeoDataFrame(
+# 			geometry=polygons,
+# 			crs=src.crs,
+# 		)
+# 		deadwood_gdf = deadwood_gdf.to_crs('EPSG:4326')
+# 		geojson = loads(deadwood_gdf.geometry.to_json())
+
+# 		labels = {
+# 			'type': 'MultiPolygon',
+# 			'coordinates': [feature['geometry']['coordinates'] for feature in geojson['features']],
+# 		}
+# 	return labels
 
 
 def extract_bbox(image_path: str) -> dict:

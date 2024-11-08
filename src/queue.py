@@ -6,7 +6,7 @@ from .supabase import use_client, login, verify_token
 from .processing import process_cog, process_thumbnail
 from .logger import logger
 import shutil
-from .deadwood_segmentation import predict_deadwood
+from .deadwood_segmentation.predict_deadwood import segment_deadwood
 
 
 def current_running_tasks(token: str) -> int:
@@ -79,7 +79,7 @@ def process_task(task: QueueTask, token: str):
 		if task.task_type in ['thumbnail', 'all']:
 			process_thumbnail(task, settings.tmp_processing_path)
 		if task.task_type in ['deadwood_segmentation', 'all']:
-			predict_deadwood(task, token)
+			segment_deadwood(task, token, settings.tmp_processing_path)
 
 		# delete the task from the queue if processing was successful
 		with use_client(token) as client:
@@ -127,7 +127,7 @@ def background_process():
 				f'Start a new background process for queued task: {task}.',
 				extra={
 					'token': token,
-					'user_id': task.user_id,
+					# 'user_id': task.user_id,
 					'dataset_id': task.dataset_id,
 				},
 			)
