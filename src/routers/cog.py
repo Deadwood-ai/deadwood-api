@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from ..supabase import verify_token, use_client
 from ..settings import settings
-from ..models import Dataset, ProcessOptions, TaskPayload, QueueTask, StatusEnum, Cog
+from ..models import Dataset, ProcessOptions, TaskPayload, QueueTask, StatusEnum, Cog, TaskTypeEnum
 from ..logger import logger
 from .. import monitoring
 from ..queue import background_process
@@ -268,11 +268,7 @@ def create_processing_task(
 		return HTTPException(status_code=401, detail='Invalid token')
 
 	# Validate task_type
-	if task_type not in ['cog', 'thumbnail', 'all']:
-		return HTTPException(
-			status_code=400,
-			detail="Invalid task type. Must be 'cog', 'thumbnail', or 'all'.",
-		)
+	task_type = TaskTypeEnum(task_type)
 
 	# Load the dataset info
 	try:
