@@ -62,7 +62,8 @@ def segment_deadwood(task: QueueTask, token: str, temp_dir: Path):
 		logger.error(f'Error: {e}')
 		return HTTPException(status_code=500, detail='Error fetching dataset')
 
-	update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_prediction)
+	# update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_prediction)
+	update_status(token, dataset_id=dataset.id, status=StatusEnum.processing)
 
 	# get local file path
 	file_path = Path(temp_dir) / dataset.file_name
@@ -85,7 +86,8 @@ def segment_deadwood(task: QueueTask, token: str, temp_dir: Path):
 		run_deadwood_inference(task.dataset_id, file_path)
 	except Exception as e:
 		logger.error(f'Error: {e}', extra={'token': token})
-		update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_errored)
+		# update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_errored)
+		update_status(token, dataset_id=dataset.id, status=StatusEnum.errored)
 		return HTTPException(status_code=500, detail='Error running deadwood segmentation')
 
 	logger.info(f'Deadwood segmentation completed for dataset {task.dataset_id}', extra={'token': token})
