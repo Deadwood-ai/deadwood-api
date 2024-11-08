@@ -1,6 +1,7 @@
 # testdata
 test_data/*
 model/*
+src/deadwood_segmentation/model.safetensors
 
 .cursorrules
 # Byte-compiled / optimized / DLL files
