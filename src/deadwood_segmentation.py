@@ -31,16 +31,23 @@ def segment_deadwood(task: QueueTask, token: str):
 		return HTTPException(status_code=500, detail='Error fetching dataset')
 
 	file_path = Path(settings.tmp_processing_path) / dataset.file_name
-	logger.info(f'Running deadwood segmentation for dataset {task.dataset_id} with file path {str(file_path)}')
+	logger.info(
+		f'Running deadwood segmentation for dataset {task.dataset_id} with file path {str(file_path)} with command:',
+		extra={'token': token},
+	)
+	logger.info(
+		f'bash -c "source /app/deadtreesmodels/venv/bin/activate && python /app/deadtreesmodels/run_deadwood_inference.py --dataset_id={task.dataset_id} --file_path={str(file_path)}"',
+		extra={'token': token},
+	)
 	try:
 		update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_prediction)
 		os.system(
-			f'source /home/jj1049/deadtreesmodels/venv/bin/activate && python /home/jj1049/deadtreesmodels/deadwood_segmentation.py --dataset_id {task.dataset_id} --file_path {str(file_path)}'
+			f'bash -c "source /app/deadtreesmodels/venv/bin/activate && python /app/deadtreesmodels/run_deadwood_inference.py --dataset_id={task.dataset_id} --file_path={str(file_path)}"'
 		)
 	except Exception as e:
-		logger.error(f'Error: {e}')
+		logger.error(f'Error: {e}', extra={'token': token})
 		update_status(token, dataset_id=dataset.id, status=StatusEnum.deadwood_errored)
 		return HTTPException(status_code=500, detail='Error running deadwood segmentation')
 
-	logger.info(f'Deadwood segmentation completed for dataset {task.dataset_id}')
+	logger.info(f'Deadwood segmentation completed for dataset {task.dataset_id}', extra={'token': token})
 	update_status(token, dataset_id=dataset.id, status=StatusEnum.processed)
