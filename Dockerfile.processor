@@ -1,6 +1,9 @@
 # Use NVIDIA CUDA base image with Python 3.12
 FROM nvidia/cuda:12.3.1-runtime-ubuntu22.04
 
+# Override the default NVIDIA entry point to suppress banner
+ENTRYPOINT []
+
 # Install Python 3.12 and curl
 RUN apt-get update && apt-get install -y \
     software-properties-common \
