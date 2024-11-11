@@ -1,37 +1,61 @@
-from PIL import Image
 import rasterio
+from rasterio.enums import Resampling
 import numpy as np
-from ..settings import settings
+from PIL import Image
+from ..logger import logger
 
-Image.MAX_IMAGE_PIXELS = None
 
+def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256, 256)):
+	"""
+	Creates a thumbnail from a GeoTIFF file using rasterio.
 
-def calculate_thumbnail(tiff_file_path, thumbnail_file_path, size=(256, 256)):
-    """
-    Creates a thumbnail from a TIFF file.
+	Args:
+	    tiff_file_path (str): Path to the TIFF file
+	    thumbnail_file_path (str): Path to save the thumbnail
+	    size (tuple): Target size for thumbnail (width, height). Default is (256, 256)
 
-    Args:
-        tiff_file_path (str): Path to the TIFF file.
-        thumbnail_target_path (str): Path to save the thumbnail.
-        size (tuple, optional): Size of the thumbnail. Default is (256, 256).
+	Returns:
+	    None
+	"""
+	try:
+		with rasterio.open(tiff_file_path) as src:
+			# Calculate scaling factor
+			scale_factor = min(size[0] / src.width, size[1] / src.height)
 
-    Returns:
-       None
+			# Calculate new dimensions (maintaining aspect ratio)
+			out_width = int(src.width * scale_factor)
+			out_height = int(src.height * scale_factor)
 
-    """
-    with Image.open(tiff_file_path) as img:
-            # create the thumbnail
-        img.thumbnail(size)
-        # Create a new image with a white background (or any other color you prefer)
-        thumb = Image.new("RGB", size, (255, 255, 255))
+			# Read the data at the new resolution
+			data = src.read(out_shape=(src.count, out_height, out_width), resampling=Resampling.lanczos)
 
-        # Calculate position to center the image
-        thumb_width, thumb_height = img.size
-        offset = ((size[0] - thumb_width) // 2, (size[1] - thumb_height) // 2)
+			# Normalize the data to 0-255 range for each band
+			rgb_data = []
+			for band in data:
+				band_norm = ((band - band.min()) * (255.0 / (band.max() - band.min()))).astype(np.uint8)
+				rgb_data.append(band_norm)
 
-        # Paste the thumbnail image onto the square background
-        thumb.paste(img, offset)
+			# Stack bands and transpose to correct shape for PIL
+			rgb_array = np.dstack(rgb_data[:3])  # Only use first 3 bands (RGB)
 
-        # save the thumbnail
-        thumb.save(thumbnail_file_path)
+			# Create PIL image
+			img = Image.fromarray(rgb_array)
 
+			# Create a new image with white background
+			thumb = Image.new('RGB', size, (255, 255, 255))
+
+			# Calculate position to center the image
+			offset = ((size[0] - out_width) // 2, (size[1] - out_height) // 2)
+
+			# Paste the thumbnail onto the white background
+			thumb.paste(img, offset)
+
+			# Save the thumbnail
+			thumb.save(thumbnail_file_path, 'JPEG', quality=85)
+
+	except Exception as e:
+		logger.error(
+			f'Error creating thumbnail: {str(e)}',
+			extra={'tiff_file': tiff_file_path, 'thumbnail_file': thumbnail_file_path},
+		)
+		raise
