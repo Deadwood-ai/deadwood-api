@@ -1,5 +1,6 @@
 import os
 from json import loads, dumps
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -121,7 +122,15 @@ def inference_deadwood(input_tif: str):
 	gets path to tif file and returns polygons of deadwood in the CRS of the tif
 	"""
 
-	dataset = InferenceDataset(image_path=input_tif, tile_size=1024, padding=256)
+	# Create path for reprojected image
+	input_path = Path(input_tif)
+	reprojected_tif = input_path.parent / f'{input_path.stem}_10cm{input_path.suffix}'
+
+	# Reproject the input image to 10cm resolution
+	reproject_to_10cm(input_tif, str(reprojected_tif))
+
+	# Use reprojected file for the dataset
+	dataset = InferenceDataset(image_path=str(reprojected_tif), tile_size=1024, padding=256)
 
 	loader_args = {
 		'batch_size': 1,
