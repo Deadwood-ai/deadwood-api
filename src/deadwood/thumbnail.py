@@ -32,7 +32,13 @@ def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256
 			# Normalize the data to 0-255 range for each band
 			rgb_data = []
 			for band in data:
-				band_norm = ((band - band.min()) * (255.0 / (band.max() - band.min()))).astype(np.uint8)
+				band_min = band.min()
+				band_max = band.max()
+				# Check if band has valid range to avoid division by zero
+				if band_max == band_min:
+					band_norm = np.zeros_like(band, dtype=np.uint8)
+				else:
+					band_norm = ((band - band_min) * (255.0 / (band_max - band_min))).astype(np.uint8)
 				rgb_data.append(band_norm)
 
 			# Stack bands and transpose to correct shape for PIL
