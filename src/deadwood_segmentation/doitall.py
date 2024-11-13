@@ -5,6 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 from tqdm import tqdm
 import utm
 import torch
@@ -123,14 +124,14 @@ def inference_deadwood(input_tif: str):
 	"""
 
 	# Create path for reprojected image
-	input_path = Path(input_tif)
-	reprojected_tif = input_path.parent / f'{input_path.stem}_10cm{input_path.suffix}'
+	# input_path = Path(input_tif)
+	# reprojected_tif = input_path.parent / f'{input_path.stem}_10cm{input_path.suffix}'
 
 	# Reproject the input image to 10cm resolution
-	reproject_to_10cm(input_tif, str(reprojected_tif))
+	# reproject_to_10cm(input_tif, str(reprojected_tif))
 
 	# Use reprojected file for the dataset
-	dataset = InferenceDataset(image_path=str(reprojected_tif), tile_size=1024, padding=256)
+	dataset = InferenceDataset(image_path=input_tif, tile_size=1024, padding=256)
 
 	loader_args = {
 		'batch_size': 1,
