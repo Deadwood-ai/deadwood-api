@@ -90,6 +90,6 @@ def segment_deadwood(task: QueueTask, token: str, temp_dir: Path):
 		update_status(token, dataset_id=dataset.id, status=StatusEnum.errored)
 		return HTTPException(status_code=500, detail='Error running deadwood segmentation')
 
-	token = login(settings.processor_username, settings.processor_password)
 	logger.info(f'Deadwood segmentation completed for dataset {task.dataset_id}', extra={'token': token})
+	token = login(settings.processor_username, settings.processor_password)
 	update_status(token, dataset_id=dataset.id, status=StatusEnum.processed)
