@@ -36,9 +36,9 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
     python3.12 -m pip install --upgrade pip setuptools wheel
 
 # Install requirements
-COPY requirements.txt requirements.txt
-RUN python3.12 -m pip install -r requirements.txt && \
-    rm requirements.txt
+COPY requirements.processor.txt requirements.txt
+RUN python3.12 -m pip install -r requirements.processor.txt && \
+    rm requirements.processor.txt
 
 # create a folder for the application
 RUN mkdir -p /app/src

@@ -11,16 +11,6 @@ rasterio
 rio-cogeo
 fire
 overpy
-pillow
 geopandas
 paramiko
 requests
-torch
-torchvision
-tqdm
-geopandas
-utm
-scikit-learn
-matplotlib
-safetensors
-opencv-python
