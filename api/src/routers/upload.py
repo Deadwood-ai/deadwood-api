@@ -68,7 +68,14 @@ async def upload_geotiff_chunk(
 
 		# Use upload service
 		upload_service = UploadService(token)
-		initial_dataset = upload_service.create_dataset_entry(target_path, file.filename, user.id, copy_time)
+		initial_dataset = upload_service.create_dataset_entry(
+			file_path=target_path,
+			file_alias=file.filename,
+			user_id=user.id,
+			copy_time=copy_time,
+			manual_upload=False,
+			new_file_name=file_name,
+		)
 
 		# Schedule combination task
 		asyncio.create_task(
