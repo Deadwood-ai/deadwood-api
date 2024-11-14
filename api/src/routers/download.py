@@ -9,12 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import pandas as pd
 
-from ..__version__ import __version__
-from ..models import Dataset, Label, Metadata
-from ..settings import settings
-from ..deadwood.downloads import bundle_dataset, label_to_geopackage
-from .. import monitoring
-
+from shared.__version__ import __version__
+from shared.models import Dataset, Label, Metadata
+from shared.settings import settings
+from api.src.downloads import bundle_dataset, label_to_geopackage
+from shared import monitoring
 
 # first approach to implement a rate limit
 CONNECTED_IPS = {}

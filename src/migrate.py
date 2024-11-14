@@ -10,9 +10,9 @@ import time
 
 import httpx
 
-from .supabase import login, use_client
-from .logger import logger
-from .models import MetadataPayloadData, LabelPayloadData, Dataset
+from .shared.supabase import login, use_client
+from .shared.logger import logger
+from .shared.models import MetadataPayloadData, LabelPayloadData, Dataset
 
 
 @cache

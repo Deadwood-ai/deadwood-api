@@ -5,11 +5,11 @@ import os
 
 from fastapi import HTTPException
 
-from .supabase import use_client, login, verify_token
-from .settings import settings
-from .models import StatusEnum, Dataset, QueueTask, Cog, Thumbnail
-from .logger import logger
-from . import monitoring
+from .shared.supabase import use_client, login, verify_token
+from .shared.settings import settings
+from .shared.models import StatusEnum, Dataset, QueueTask, Cog, Thumbnail
+from .shared.logger import logger
+from .shared import monitoring
 from .deadwood.cog import calculate_cog
 from .deadwood.thumbnail import calculate_thumbnail
 

@@ -3,12 +3,12 @@ from typing import Optional
 import time
 import uuid
 
-from ..models import Dataset
-from ..services.upload_service import UploadService
-from ..settings import settings
-from ..logger import logger
+from ..shared.models import Dataset
+from ..api.src.upload_service import UploadService
+from ..shared.settings import settings
+from ..shared.logger import logger
 from ..processing import push_file_to_storage_server
-from ..models import MetadataPayloadData
+from ..shared.models import MetadataPayloadData
 
 
 def manual_upload(file_path: Path, token: str, user_id: Optional[str] = None) -> Dataset:

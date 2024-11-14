@@ -1,4 +1,5 @@
 import os
+
 os.environ['SSH_PRIVATE_KEY_PATH'] = '/home/jj1049/.ssh/id_rsa'
 
 import argparse
@@ -6,12 +7,11 @@ from pathlib import Path
 import requests
 import time
 
-from src.supabase import login, verify_token
+from src.shared.supabase import login, verify_token
 from src.utils.manual_upload import manual_upload
-from src.settings import settings
-from src.models import MetadataPayloadData
-from src.utils.update_metadata_admin_level import update_metadata_admin_level
-
+from src.shared.settings import settings
+from src.shared.models import MetadataPayloadData
+from api.src.update_metadata_admin_level import update_metadata_admin_level
 
 
 def main(year):
@@ -25,7 +25,10 @@ def main(year):
 	DATA_ACCESS = 'public'
 	PLATFORM = 'airborne'
 	FILE_ALIAS = f'TDOP_{year}_123_jpg85_btif_mosaic.tif'
-	FILE_PATH = '/mnt/gsdata/projects/deadtrees/drone_campaigns/naturpark_schwarzwald/blackforestnationalparktimeseries/TDOP_mosaic/' + FILE_ALIAS
+	FILE_PATH = (
+		'/mnt/gsdata/projects/deadtrees/drone_campaigns/naturpark_schwarzwald/blackforestnationalparktimeseries/TDOP_mosaic/'
+		+ FILE_ALIAS
+	)
 	PROCESS = 'all'
 
 	parser = argparse.ArgumentParser(description='Manually upload a file to the storage server')
@@ -117,7 +120,6 @@ def main(year):
 		res.raise_for_status()
 	except Exception as e:
 		print(f'Error updating process: {e}')
-
 
 
 if __name__ == '__main__':

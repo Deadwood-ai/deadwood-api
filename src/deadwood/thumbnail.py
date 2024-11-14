@@ -2,7 +2,7 @@ import rasterio
 from rasterio.enums import Resampling
 import numpy as np
 from PIL import Image
-from ..logger import logger
+from ..shared.logger import logger
 
 
 def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256, 256)):

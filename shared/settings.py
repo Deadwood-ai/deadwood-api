@@ -98,7 +98,7 @@ class Settings(BaseSettings):
 		return path
 
 	@property
-	def label_objects_path(self) -> Path:
+	def user_label_path(self) -> Path:
 		path = self.base_path / self.label_objects_dir
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)

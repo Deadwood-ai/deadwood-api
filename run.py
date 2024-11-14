@@ -1,8 +1,8 @@
 import uvicorn
 
-from src.settings import settings
+from shared.settings import settings
 
-from src.queue import background_process
+# from src.processor.src.queue import background_process
 
 
 def run(
@@ -21,10 +21,12 @@ def run(
 	:param proxy_headers: use proxy headers
 	:param reload: reload the server on file changes
 	"""
-	uvicorn.run('src.server:app', host=host, port=port, root_path=root_path, proxy_headers=proxy_headers, reload=reload)
+	uvicorn.run(
+		'api.src.server:app', host=host, port=port, root_path=root_path, proxy_headers=proxy_headers, reload=reload
+	)
 
 
 if __name__ == '__main__':
 	from fire import Fire
 
-	Fire({'server': run, 'start-queue': background_process})
+	Fire({'server': run})

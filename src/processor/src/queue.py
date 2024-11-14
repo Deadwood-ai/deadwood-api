@@ -1,12 +1,12 @@
 from threading import Timer
 
-from .models import QueueTask, StatusEnum
-from .settings import settings
-from .supabase import use_client, login, verify_token
-from .processing import process_cog, process_thumbnail
-from .logger import logger
+from ...shared.models import QueueTask, StatusEnum
+from ...shared.settings import settings
+from ...shared.supabase import use_client, login, verify_token
+from ...processing import process_cog, process_thumbnail
+from ...shared.logger import logger
 import shutil
-from .deadwood_segmentation.predict_deadwood import segment_deadwood
+from ...deadwood_segmentation.predict_deadwood import segment_deadwood
 
 
 def current_running_tasks(token: str) -> int:

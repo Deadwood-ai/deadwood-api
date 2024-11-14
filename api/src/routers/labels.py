@@ -1,13 +1,13 @@
 from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from fastapi.security import OAuth2PasswordBearer
 
 from shared.supabase import verify_token, use_client
 from shared.settings import settings
 from shared.logger import logger
-from shared.models import Dataset, Label, LabelPayloadData
-from api.src.labels import verify_labels
+from shared.models import Dataset, Label, LabelPayloadData, UserLabelObject
+from ..labels import verify_labels
 from shared import monitoring
 
 # create the router for the labels
@@ -96,3 +96,68 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 	)
 
 	return label
+
+
+@router.post('/datasets/{dataset_id}/user-labels')
+async def upload_user_labels(
+	file: UploadFile,
+	dataset_id: int,
+	user_id: Annotated[str, Form()],
+	file_type: Annotated[str, Form()],
+	file_alias: Annotated[str, Form()],
+	label_description: Annotated[str, Form()],
+	token: Annotated[str, Depends(oauth2_scheme)],
+):
+	"""
+	Upload a label object.
+	"""
+
+	user = verify_token(token)
+	if not user:
+		raise HTTPException(status_code=401, detail='Invalid token')
+	logger.info(f'Received label object for dataset {dataset_id} from user {user_id}', extra={'token': token})
+
+	# create folder if not exists settings.labels_objects_path / dataset_id
+	if not (settings.user_label_path / str(dataset_id)).exists():
+		(settings.user_label_path / str(dataset_id)).mkdir(parents=True, exist_ok=True)
+	# count number of files in the folder
+
+	target_path = (
+		settings.user_label_path
+		/ str(dataset_id)
+		/ f'{file_alias}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.{file_type}'
+	)
+
+	try:
+		with target_path.open('wb') as buffer:
+			buffer.write(await file.read())
+	except Exception as e:
+		logger.exception(f'Error saving label object to {target_path}: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error saving label object to {target_path}: {str(e)}')
+
+	logger.info(f'Saved label object to {target_path}', extra={'token': token})
+
+	# insert the label object into the database
+	label_object = UserLabelObject(
+		dataset_id=dataset_id,
+		user_id=user_id,
+		file_type=file_type,
+		file_alias=file_alias,  # alias is the original filename, as in the file_alias of the dataset
+		file_path=str(target_path),  # path is the path to the label object on the server
+		label_description=label_description,
+		audited=False,
+	)
+
+	try:
+		with use_client(token) as client:
+			send_data = {k: v for k, v in label_object.model_dump().items() if v is not None}
+			response = client.table(settings.label_objects_table).insert(send_data).execute()
+			logger.info(
+				f'Inserted label object into database: {response.data[0]}',
+				extra={'token': token, 'dataset_id': dataset_id, 'user_id': user_id},
+			)
+	except Exception as e:
+		logger.exception(f'Error inserting label object into database: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=400, detail=f'Error inserting label object into database: {str(e)}')
+
+	return label_object

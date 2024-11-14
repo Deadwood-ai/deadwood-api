@@ -1,8 +1,8 @@
 import logging
 
-from .supabase import use_client
-from .__version__ import __version__
-from .settings import settings
+from shared.supabase import use_client
+from shared.__version__ import __version__
+from shared.settings import settings
 
 
 # create a custom supabase handler

@@ -1,9 +1,9 @@
 import requests
 
-from ..supabase import login, verify_token, use_client
+from ..shared.supabase import login, verify_token, use_client
 from fastapi import HTTPException
-from ..logger import logger
-from ..settings import settings
+from ..shared.logger import logger
+from ..shared.settings import settings
 
 
 def upload_to_supabase(dataset_id, label, aoi, label_type, label_source, label_quality):

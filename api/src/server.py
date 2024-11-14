@@ -4,8 +4,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 import prometheus_client
 
-from .__version__ import __version__
-from .routers import cog, upload, info, auth, labels, thumbnail, download
+from shared.__version__ import __version__
+from .routers import process, upload, info, auth, labels, download
 
 app = FastAPI(
 	title='Deadwood-AI API',
@@ -43,13 +43,13 @@ app.include_router(upload.router)
 app.include_router(auth.router)
 
 # add the processing to the app
-app.include_router(cog.router)
+app.include_router(process.router)
 
 # add the labels to the app
 app.include_router(labels.router)
 
 # add thumbnail route to the app
-app.include_router(thumbnail.router)
+# app.include_router(thumbnail.router)
 
 
 # add the download routes to the app

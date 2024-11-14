@@ -1,10 +1,10 @@
 from fastapi import HTTPException
 
-from ..supabase import use_client
-from ..settings import settings
-from ..models import Dataset
-from ..deadwood.osm import get_admin_tags
-from ..logger import logger
+from shared.supabase import use_client
+from shared.settings import settings
+from shared.models import Dataset
+from .osm import get_admin_tags
+from shared.logger import logger
 
 
 def update_metadata_admin_level(dataset_id: int, token: str):

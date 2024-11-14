@@ -3,11 +3,11 @@ from fastapi import HTTPException
 from pathlib import Path
 
 
-from ..supabase import use_client, login, verify_token
+from ..shared.supabase import use_client, login, verify_token
 from ..processing import update_status, pull_file_from_storage_server
-from ..models import QueueTask, Dataset, StatusEnum
-from ..settings import settings
-from ..logger import logger
+from ..shared.models import QueueTask, Dataset, StatusEnum
+from ..shared.settings import settings
+from ..shared.logger import logger
 
 from .doitall import inference_deadwood, transform_mask, extract_bbox
 from .upload_prediction import upload_to_supabase

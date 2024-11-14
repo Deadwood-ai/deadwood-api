@@ -8,11 +8,11 @@ from rasterio.env import Env
 from rasterio import warp
 
 
-from ..models import Dataset, StatusEnum
-from ..supabase import use_client
-from ..settings import settings
-from ..logger import logger
-from ..deadwood.osm import get_admin_tags
+from shared.models import Dataset, StatusEnum
+from shared.supabase import use_client
+from shared.settings import settings
+from shared.logger import logger
+from .osm import get_admin_tags
 
 
 class UploadService:

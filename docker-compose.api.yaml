@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: api/Dockerfile
     ports:
       - 8762:8762
     volumes:
@@ -32,7 +32,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: api/Dockerfile
     volumes:
       - ./data:/data
       - ./src:/app/src
