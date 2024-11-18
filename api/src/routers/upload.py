@@ -1,32 +1,23 @@
 from typing import Annotated
-import uuid
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor
-import asyncio
-
-
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
+import hashlib
+import uuid
+import time
+import aiofiles
+from fastapi import UploadFile, Depends, HTTPException, Form, APIRouter
 from fastapi.security import OAuth2PasswordBearer
 
-
-from shared.models import Metadata, MetadataPayloadData, Dataset, StatusEnum, UserLabelObject
+from shared.models import Metadata, MetadataPayloadData
 from shared.supabase import use_client, verify_token
 from shared.settings import settings
 from shared.logger import logger
 from shared import monitoring
-from ..upload_service import UploadService
-from ..upload import run_combine_chunks_and_shutdown_executor
 
-# Add this import at the top of the file
-import tempfile
+from ..upload import create_initial_dataset_entry, get_transformed_bounds, get_file_identifier
 
-# create the router for the upload
 router = APIRouter()
 
-# create the OAuth2 password scheme for supabase login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
-
-executor = ProcessPoolExecutor(max_workers=5)
 
 
 @router.post('/datasets/chunk')
@@ -39,57 +30,59 @@ async def upload_geotiff_chunk(
 	upload_id: Annotated[str, Form()],
 	token: Annotated[str, Depends(oauth2_scheme)],
 ):
-	"""
-	Handle chunked upload of a GeoTIFF file.
-
-	This endpoint receives chunks of a file, saves them temporarily,
-	and combines them when all chunks are received.
-	"""
-	# Verify token
+	"""Handle chunked upload of a GeoTIFF file with incremental hash computation"""
 	user = verify_token(token)
 	if not user:
 		raise HTTPException(status_code=401, detail='Invalid token')
 
-	# Create temporary directory
-	tmp_dir = Path(tempfile.gettempdir()) / upload_id
-	tmp_dir.mkdir(parents=True, exist_ok=True)
+	chunk_index = int(chunk_index)
+	chunks_total = int(chunks_total)
 
-	# Save chunk
-	chunk_file = tmp_dir / f'chunk_{chunk_index}'
-	with chunk_file.open('wb') as buffer:
-		content = await file.read()
-		buffer.write(content)
+	upload_file_name = f'{upload_id}.tif'
+	upload_target_path = settings.archive_path / upload_file_name
 
-	# If last chunk, process file
-	if int(chunk_index) == int(chunks_total) - 1:
-		uid = str(uuid.uuid4())
-		file_name = f'{uid}_{Path(filename).stem}.tif'
-		target_path = settings.archive_path / file_name
+	# Write chunk and update hash
+	content = await file.read()
+	mode = 'wb' if chunk_index == 0 else 'ab'
+	async with aiofiles.open(upload_target_path, mode) as buffer:
+		await buffer.write(content)
 
-		# Use upload service
-		upload_service = UploadService(token)
-		initial_dataset = upload_service.create_dataset_entry(
-			file_path=target_path,
-			file_alias=file.filename,
-			user_id=user.id,
-			copy_time=copy_time,
-			manual_upload=False,
-			new_file_name=file_name,
-		)
+	# Process final chunk
+	if chunk_index == chunks_total - 1:
+		try:
+			# rename file
+			uid = str(uuid.uuid4())
+			file_name = f'{uid}_{Path(filename).stem}.tif'
+			target_path = settings.archive_path / file_name
+			upload_target_path.rename(target_path)
 
-		# Schedule combination task
-		asyncio.create_task(
-			run_combine_chunks_and_shutdown_executor(
-				tmp_dir,
-				chunks_total,
-				file_name,
-				target_path,
-				token,
-				initial_dataset,
+			# Get final hash
+			final_sha256 = get_file_identifier(target_path)
+			# logger.info(
+			# 	f'Hashing took {hash_time:.2f}s for {target_path.stat().st_size / 1024 / 1024 / 1024:.2f} GB',
+			# 	extra={'token': token},
+			# )
+
+			# Get bounds
+			bbox = get_transformed_bounds(target_path)
+
+			# Update dataset entry
+			dataset = create_initial_dataset_entry(
+				filename=str(target_path),
+				file_alias=filename,
+				user_id=user.id,
+				copy_time=copy_time,
+				token=token,
+				file_size=target_path.stat().st_size,
+				bbox=bbox,
+				sha256=final_sha256,
 			)
-		)
 
-		return initial_dataset
+			return dataset
+
+		except Exception as e:
+			logger.exception(f'Error processing final chunk: {e}', extra={'token': token})
+			raise HTTPException(status_code=500, detail=str(e))
 
 	return {'message': f'Chunk {chunk_index} of {chunks_total} received'}
 

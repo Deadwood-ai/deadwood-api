@@ -1,20 +1,20 @@
 from pathlib import Path
-import hashlib
 import rasterio
-from rasterio.env import Env
-from concurrent.futures import ProcessPoolExecutor
-import asyncio
+import hashlib
 import shutil
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Form
-from fastapi.security import OAuth2PasswordBearer
+import time
+
+from rasterio.env import Env
+from rasterio.warp import transform_bounds
+
+from fastapi import HTTPException
 
 from shared.models import Dataset, StatusEnum
-from shared.supabase import use_client, verify_token
+from shared.supabase import use_client, login
 from shared.settings import settings
 from shared.logger import logger
-from shared import monitoring
-from .upload_service import UploadService
-from .update_metadata_admin_level import update_metadata_admin_level
+
+# from .update_metadata_admin_level import update_metadata_admin_level
 
 
 def format_size(size: int) -> str:
@@ -36,114 +36,52 @@ def format_size(size: int) -> str:
 		return f'{size / 1024**3:.2f} GB'
 
 
-def combine_chunks(
-	tmp_dir: Path,
-	total_chunks: int,
-	filename: str,
-	target_path: Path,
-	token: str,
-	initial_dataset: Dataset,
-) -> None:
-	"""Combine all chunks into a single file and process it."""
-	logger.info(f'Combining chunks for file {filename}', extra={'token': token})
-
-	# Initialize SHA256 hash object
-	sha256_hash = hashlib.sha256()
-
-	# Write directly to the target path
-	with target_path.open('wb') as outfile:
-		for i in range(int(total_chunks)):
-			chunk_file = tmp_dir / f'chunk_{i}'
-			with chunk_file.open('rb') as infile:
-				while True:
-					# Read in larger chunks to reduce I/O operations
-					data = infile.read(1024 * 1024)  # 1MB buffer size
-					if not data:
-						break
-					outfile.write(data)
-					sha256_hash.update(data)
-			chunk_file.unlink()  # Remove the chunk file after combining
-
-	logger.info(f'Combined chunks for file {filename}', extra={'token': token})
-
-	# Compute SHA256 checksum
-	sha256 = sha256_hash.hexdigest()
-	logger.info(f'Computed SHA256 checksum {sha256} for file {target_path}', extra={'token': token})
-
-	# Open with rasterio and get bounds
+def get_transformed_bounds(file_path: Path):
+	"""Get transformed bounds from GeoTIFF"""
 	with Env(GTIFF_SRS_SOURCE='EPSG'):
-		with rasterio.open(str(target_path), 'r') as src:
+		with rasterio.open(str(file_path), 'r') as src:
 			try:
-				transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *src.bounds)
+				return transform_bounds(src.crs, 'EPSG:4326', *src.bounds)
 			except Exception as e:
-				logger.error(f'No CRS found for {target_path}: {e}')
-				return
-
-	logger.info(f'Transformed bounds {transformed_bounds} for file {target_path}', extra={'token': token})
-
-	# Update dataset entry
-	update_dataset_entry(initial_dataset.id, target_path, sha256, transformed_bounds, token)
-
-	# Update the metadata admin level
-	update_metadata_admin_level(initial_dataset.id, token)
-
-	logger.info(f'Updated dataset entry {initial_dataset} for file {target_path}', extra={'token': token})
-
-	# Clean up the temporary directory
-	shutil.rmtree(tmp_dir)
-	logger.info(f'Cleaned up temporary directory {tmp_dir}', extra={'token': token})
+				logger.error(f'No CRS found for {file_path}: {e}')
+				return None
 
 
-async def run_combine_chunks_and_shutdown_executor(
-	tmp_dir,
-	total_chunks,
-	filename,
-	target_path,
-	token,
-	initial_dataset,
-):
-	try:
-		# Create a new executor
-		with ProcessPoolExecutor(max_workers=5) as executor:
-			loop = asyncio.get_running_loop()
-			await loop.run_in_executor(
-				executor,
-				combine_chunks,
-				tmp_dir,
-				total_chunks,
-				filename,
-				target_path,
-				token,
-				initial_dataset,
-			)
-		# Executor is automatically shut down when exiting the 'with' block
-	except Exception as e:
-		# Log any exceptions from combine_chunks
-		logger.exception(f'Error in combine_chunks: {e}', extra={'token': token})
+def get_file_identifier(file_path: Path, sample_size: int = 10 * 1024 * 1024) -> str:
+	"""Generate a quick file identifier by sampling start/end of file"""
+	file_size = file_path.stat().st_size
+	hasher = hashlib.sha256()
+
+	with open(file_path, 'rb') as f:
+		# Hash file size
+		hasher.update(str(file_size).encode())
+
+		# Hash first 10MB
+		hasher.update(f.read(sample_size))
+
+		# Hash last 10MB
+		f.seek(-min(sample_size, file_size), 2)
+		hasher.update(f.read(sample_size))
+
+	return hasher.hexdigest()
 
 
-def compute_sha256(file_path: Path) -> str:
-	"""Compute SHA256 checksum of a file."""
-	sha256_hash = hashlib.sha256()
-	with file_path.open('rb') as f:
-		for byte_block in iter(lambda: f.read(4096), b''):
-			sha256_hash.update(byte_block)
-	return sha256_hash.hexdigest()
-
-
-def create_initial_dataset_entry(filename: str, file_alias: str, user_id: str, copy_time: int, token: str) -> Dataset:
+def create_initial_dataset_entry(
+	filename: str, file_alias: str, user_id: str, copy_time: int, file_size: int, sha256: str, bbox, token: str
+) -> Dataset:
 	"""Create an initial dataset entry with available information."""
 	data = dict(
 		file_name=filename,
 		file_alias=file_alias,
-		status=StatusEnum.uploading,
+		status=StatusEnum.uploaded,
 		user_id=user_id,
 		copy_time=copy_time,
-		file_size=None,
-		sha256=None,
-		bbox=None,
+		file_size=file_size,
+		sha256=sha256,
+		bbox=bbox,
 	)
 	dataset = Dataset(**data)
+	print(dataset)
 
 	with use_client(token) as client:
 		try:
@@ -156,26 +94,89 @@ def create_initial_dataset_entry(filename: str, file_alias: str, user_id: str, c
 	return Dataset(**response.data[0])
 
 
-def update_dataset_entry(dataset_id: int, target_path: Path, sha256: str, bounds, token: str):
-	"""Update the existing dataset entry with processed information."""
+# def update_dataset_entry(dataset_id: int, file_size: int, sha256: str, bbox):
+# 	"""Update the existing dataset entry with processed information."""
 
-	data = dict(
-		file_name=None,
-		file_alias=None,
-		copy_time=None,
-		user_id=None,
-		file_size=target_path.stat().st_size,
-		sha256=sha256,
-		bbox=bounds,
-		status=StatusEnum.uploaded,
-	)
-	dataset_update = Dataset(**data)
+# 	token = login(settings.processing_username, settings.processing_password)
 
-	with use_client(token) as client:
-		try:
-			client.table(settings.datasets_table).update(
-				dataset_update.model_dump(include={'file_size', 'sha256', 'bbox', 'status'})
-			).eq('id', dataset_id).execute()
-		except Exception as e:
-			logger.exception(f'Error updating dataset: {str(e)}', extra={'token': token})
-			raise HTTPException(status_code=400, detail=f'Error updating dataset: {str(e)}')
+# 	data = dict(
+# 		file_name=None,
+# 		file_alias=None,
+# 		copy_time=None,
+# 		user_id=None,
+# 		file_size=file_size,
+# 		sha256=sha256,
+# 		bbox=bbox,
+# 		status=StatusEnum.uploaded,
+# 	)
+# 	dataset_update = Dataset(**data)
+
+# 	with use_client(token) as client:
+# 		try:
+# 			client.table(settings.datasets_table).update(
+# 				dataset_update.model_dump(include={'file_size', 'sha256', 'bbox', 'status'})
+# 			).eq('id', dataset_id).execute()
+# 		except Exception as e:
+# 			logger.exception(f'Error updating dataset: {str(e)}', extra={'token': token})
+# 			raise HTTPException(status_code=400, detail=f'Error updating dataset: {str(e)}')
+
+
+# def assemble_chunks(upload_id: str, new_file_name: str, chunks_total: int, temp_dir: str, dataset: Dataset) -> Dataset:
+# 	"""Assemble chunks into final file"""
+# 	temp_dir = Path(temp_dir)
+# 	target_path = settings.archive_path / new_file_name
+
+# 	logger.info(f'Assembling chunks for {target_path}')
+
+# 	# Explicit conversion to ensure chunks_total is int
+# 	chunks_total = int(chunks_total)
+
+# 	# Assemble chunks
+# 	with open(target_path, 'wb') as outfile:
+# 		for i in range(chunks_total):
+# 			chunk_path = Path(temp_dir) / f'chunk_{i}'
+# 			with open(chunk_path, 'rb') as infile:
+# 				shutil.copyfileobj(infile, outfile)
+# 	logger.info(f'Chunks assembled')
+
+# 	# Cleanup chunk files, dont delet parent folder
+# 	shutil.rmtree(temp_dir)
+
+# 	# Proceed with hashing and bounds extraction
+# 	try:
+# 		# Get file identifier
+# 		start_hashing = time.time()
+# 		final_hash = get_file_identifier(target_path)
+# 		hash_time = time.time() - start_hashing
+
+# 		logger.info(
+# 			f'Hashing took {hash_time:.2f}s for {target_path.stat().st_size / (1024 ** 3):.2f} GB',
+# 			# extra={'token': token},
+# 		)
+
+# 		# Get bounds
+# 		start_bounds = time.time()
+# 		bbox = get_transformed_bounds(target_path)
+# 		bounds_time = time.time() - start_bounds
+
+# 		file_size = target_path.stat().st_size
+
+# 		logger.info(
+# 			f'Getting bounds took {bounds_time:.2f}s',
+# 			# extra={'token': token},
+# 		)
+
+# 		# Update dataset entry
+# 		logger.info(f'Updating dataset entry for {dataset.id}')
+# 		dataset = update_dataset_entry(
+# 			dataset_id=dataset.id,
+# 			file_size=file_size,
+# 			sha256=final_hash,
+# 			bbox=bbox,
+# 		)
+
+# 		return dataset
+
+# 	except Exception as e:
+# 		logger.exception(f'Error assembling chunks: {e}', extra={'token': token})
+# 		raise HTTPException(status_code=500, detail=str(e))

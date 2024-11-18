@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 	label_objects_dir: str = 'label_objects'
 
 	# Temporary processing directory
-	tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='cog_processing_')))
+	tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='ortho_upload')))
 
 	# supabase settings for supabase authentication
 	supabase_url: Optional[str] = None
