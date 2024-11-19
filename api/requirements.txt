@@ -15,3 +15,5 @@ geopandas
 paramiko
 requests
 aiofiles
+httpx
+tqdm

@@ -7,7 +7,7 @@ from ..shared.models import Dataset
 from ..api.src.upload_service import UploadService
 from ..shared.settings import settings
 from ..shared.logger import logger
-from ..processing import push_file_to_storage_server
+from ..src.processing import push_file_to_storage_server
 from ..shared.models import MetadataPayloadData
 
 
