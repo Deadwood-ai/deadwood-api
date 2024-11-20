@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from api.src.gadm import get_admin_tags, update_metadata_admin_level
+from api.src.admin_levels import get_admin_tags, update_metadata_admin_level
 from shared.models import Dataset
 from shared.settings import settings
 from shared.supabase import use_client, login
