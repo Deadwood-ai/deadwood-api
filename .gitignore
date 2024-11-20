@@ -1,5 +1,6 @@
 # testdata
 test_data/*
+api/gadm/*
 model/*
 src/deadwood_segmentation/model.safetensors
 

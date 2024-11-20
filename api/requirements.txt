@@ -17,3 +17,7 @@ requests
 aiofiles
 httpx
 tqdm
+pytest
+pytest-mock
+pytest-cov
+debugpy
