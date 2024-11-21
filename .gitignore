@@ -1,8 +1,8 @@
 # testdata
 test_data/*
 api/gadm/*
-model/*
-src/deadwood_segmentation/model.safetensors
+api/tests/test_data/*
+processor/src/deadwood_segmentation/models/*
 
 .cursorrules
 # Byte-compiled / optimized / DLL files

@@ -2,8 +2,6 @@ import uvicorn
 
 from shared.settings import settings
 
-# from src.processor.src.queue import background_process
-
 
 def run(
 	host: str = settings.uvicorn_host,

@@ -3,7 +3,7 @@ services:
   processor:
     build:
       context: .
-      dockerfile: Dockerfile.processor
+      dockerfile: processor/Dockerfile
     network_mode: host
     deploy:
       resources:
