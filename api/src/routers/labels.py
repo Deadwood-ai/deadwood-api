@@ -7,7 +7,7 @@ from shared.supabase import verify_token, use_client
 from shared.settings import settings
 from shared.logger import logger
 from shared.models import Dataset, Label, LabelPayloadData, UserLabelObject
-from ..labels import verify_labels
+from ..labels.labels import verify_labels
 from shared import monitoring
 
 # create the router for the labels

@@ -13,7 +13,7 @@ from shared.settings import settings
 from shared.logger import logger
 from shared import monitoring
 
-from ..upload import create_initial_dataset_entry, get_transformed_bounds, get_file_identifier
+from ..upload.upload import create_initial_dataset_entry, get_transformed_bounds, get_file_identifier
 
 router = APIRouter()
 

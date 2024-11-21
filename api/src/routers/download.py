@@ -12,7 +12,7 @@ import pandas as pd
 from shared.__version__ import __version__
 from shared.models import Dataset, Label, Metadata
 from shared.settings import settings
-from api.src.downloads import bundle_dataset, label_to_geopackage
+from api.src.download.downloads import bundle_dataset, label_to_geopackage
 from shared import monitoring
 
 # first approach to implement a rate limit

@@ -9,11 +9,6 @@ from shared.supabase import verify_token, use_client
 from shared.settings import settings
 from shared.models import Dataset, ProcessOptions, TaskPayload, QueueTask, StatusEnum, Cog, TaskTypeEnum
 from shared.logger import logger
-# from .. import monitoring
-# from ..queue import background_process
-
-# from ..processing import update_status
-# from ..deadwood.cog import calculate_cog
 
 # create the router for the processing
 router = APIRouter()

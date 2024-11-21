@@ -7,8 +7,7 @@ from shared.settings import settings
 from shared.models import Metadata, MetadataPayloadData
 from shared.logger import logger
 from shared import monitoring
-
-from ....archive.osm import update_metadata_admin_level
+from api.src.utils.admin_levels import update_metadata_admin_level
 
 # create the router for the metadata
 router = APIRouter()
