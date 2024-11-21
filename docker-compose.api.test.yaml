@@ -6,12 +6,13 @@ services:
     ports:
       - '5678:5678'
     volumes:
-      - ./data:/data
+      - ./data:/data:ro
       - ./src:/app/src
       - ./api/tests:/app/api/tests
       - ./api/gadm:/app/api/gadm
       - ./api/tests/test_data:/app/api/tests/test_data
       - ./import_data.py:/app/import_data.py
+      - /tmp:/tmp
     environment:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
@@ -31,4 +32,5 @@ services:
       PROCESSOR_USERNAME: processor@deadtrees.earth
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       PYTHONPATH: /app
+      TMPDIR: /tmp
     entrypoint: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest

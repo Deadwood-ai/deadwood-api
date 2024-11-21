@@ -21,3 +21,4 @@ pytest
 pytest-mock
 pytest-cov
 debugpy
+fastapi[testclient]
