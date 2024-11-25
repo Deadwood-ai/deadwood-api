@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 	# base directory for the storage app
 	base_dir: str = str(BASE)
 
+	dev_mode: bool = False
+
 	# directly specify the locations for several files
 	archive_dir: str = 'archive'
 	cog_dir: str = 'cogs'
@@ -23,7 +25,7 @@ class Settings(BaseSettings):
 	label_objects_dir: str = 'label_objects'
 
 	# Temporary processing directory
-	tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='ortho_upload')))
+	# tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='processing')))
 
 	# supabase settings for supabase authentication
 	supabase_url: Optional[str] = None
@@ -50,20 +52,18 @@ class Settings(BaseSettings):
 	ssh_private_key_path: str = '/app/ssh_key'
 	ssh_private_key_passphrase: str = ''
 
-	# tabe names
-	datasets_table: str = 'v1_datasets'
-	metadata_table: str = 'v1_metadata'
-	cogs_table: str = 'v1_cogs'
-	labels_table: str = 'v1_labels'
-	thumbnail_table: str = 'v1_thumbnails'
-	logs_table: str = 'logs'
-	label_objects_table: str = 'v1_label_objects'
+	# Table names with conditional dev prefix
+	datasets_table: str = 'dev_datasets' if dev_mode else 'v1_datasets'
+	metadata_table: str = 'dev_metadata' if dev_mode else 'v1_metadata'
+	cogs_table: str = 'dev_cogs' if dev_mode else 'v1_cogs'
+	labels_table: str = 'dev_labels' if dev_mode else 'v1_labels'
+	thumbnail_table: str = 'dev_thumbnails' if dev_mode else 'v1_thumbnails'
+	logs_table: str = 'dev_logs' if dev_mode else 'logs'
+	label_objects_table: str = 'dev_label_objects' if dev_mode else 'label_objects'
+	queue_table: str = 'dev_queue' if dev_mode else 'queue'
+	queue_position_table: str = 'dev_queue_positions' if dev_mode else 'queue_positions'
 
-	# queue settings
-	queue_table: str = 'v1_queue'
-	queue_position_table: str = 'v1_queue_positions'
-	concurrent_tasks: int = 2
-	task_retry_delay: int = 60
+	processing_dir: str = 'processing'
 
 	@property
 	def base_path(self) -> Path:
@@ -103,6 +103,11 @@ class Settings(BaseSettings):
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
+		return path
+
+	@property
+	def processing_path(self) -> Path:
+		path = Path(tempfile.mkdtemp(prefix='processing'))
 		return path
 
 

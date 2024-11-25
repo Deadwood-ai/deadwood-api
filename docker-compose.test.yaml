@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  processor-test:
+    build:
+      context: .
+      dockerfile: processor/Dockerfile
+    ports:
+      - '5678:5678'
+    volumes:
+      - ./processor:/app/processor
+      - ./shared:/app/shared
+      - ./processor/tests/test_data:/app/test_data
+      - ./data:/data
+      - /Users/januschvajna-jehle/.ssh/id_rsa:/app/ssh_key
+    environment:
+      - PYTHONPATH=/app
+      - PYTEST_ADDOPTS=--color=yes
+      - STORAGE_SERVER_IP=${STORAGE_SERVER_IP}
+      - STORAGE_SERVER_USERNAME=${STORAGE_SERVER_USERNAME}
+      - STORAGE_SERVER_DATA_PATH=${STORAGE_SERVER_DATA_PATH}
+      - PROCESSOR_USERNAME=processor@deadtrees.earth
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - BASE_DIR=/data
+      - DEV_MODE=true
+      # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
+      # - DATASETS_TABLE=${DATASETS_TABLE}
+      # - METADATA_TABLE=${METADATA_TABLE}
+      # - COGS_TABLE=${COGS_TABLE}
+      # - LABELS_TABLE=${LABELS_TABLE}
+      # - QUEUE_TABLE=${QUEUE_TABLE}
+      # - QUEUE_POSITION_TABLE=${QUEUE_POSITION_TABLE}
+      # - LOGS_TABLE=${LOGS_TABLE}
+      - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
+      - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
+      - DEV_MODE=${DEV_MODE}
+    command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
+
+  api-test:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - '5679:5679'
+    volumes:
+      - ./api:/app/api
+      - ./shared:/app/shared
+      - ./api/tests/test_data:/app/test_data
+      - ./data:/data
+    environment:
+      - PYTHONPATH=/app
+      - PYTEST_ADDOPTS=--color=yes
+      - STORAGE_SERVER_IP=${STORAGE_SERVER_IP}
+      - STORAGE_SERVER_USERNAME=${STORAGE_SERVER_USERNAME}
+      - STORAGE_SERVER_DATA_PATH=${STORAGE_SERVER_DATA_PATH}
+      - PROCESSOR_USERNAME=processor@deadtrees.earth
+      - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
+      - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - BASE_DIR=/data
+      - DEV_MODE=true
+      # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
+      # - DATASETS_TABLE=${DATASETS_TABLE}
+      # - METADATA_TABLE=${METADATA_TABLE}
+      # - COGS_TABLE=${COGS_TABLE}
+      # - LABELS_TABLE=${LABELS_TABLE}
+      # - QUEUE_TABLE=${QUEUE_TABLE}
+      # - QUEUE_POSITION_TABLE=${QUEUE_POSITION_TABLE}
+      # - LOGS_TABLE=${LOGS_TABLE}
+      - DEV_MODE=${DEV_MODE}
+    # command: pytest api/tests -v --cov=api/src --cov-report=term-missing
+    command: python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m pytest
