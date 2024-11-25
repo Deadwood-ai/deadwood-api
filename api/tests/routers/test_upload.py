@@ -52,6 +52,7 @@ def test_upload_geotiff_chunk(test_file, auth_token, temp_upload_dir):
 	chunks_total = (file_size + chunk_size - 1) // chunk_size
 	upload_id = 'test-upload-id'
 
+
 	# Read file in chunks and upload each chunk
 	with open(test_file, 'rb') as f:
 		for chunk_index in range(chunks_total):
@@ -88,6 +89,8 @@ def test_upload_geotiff_chunk(test_file, auth_token, temp_upload_dir):
 				assert dataset['file_size'] > 0
 				assert dataset['bbox'] is not None
 				assert dataset['sha256'] is not None
+				assert isinstance(dataset['file_name'], str)
+				assert '/' not in dataset['file_name']
 
 				# Cleanup: Remove the dataset from the database if it was created
 				if dataset_id:

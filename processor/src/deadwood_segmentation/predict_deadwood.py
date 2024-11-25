@@ -1,9 +1,8 @@
-from fastapi import HTTPException
-
+from shared.logger import logger
 
 from .doitall import inference_deadwood, transform_mask, extract_bbox
 from .upload_prediction import upload_to_supabase
-from ....shared.logger import logger
+from ..exceptions import ProcessingError
 
 
 def predict_deadwood(dataset_id, file_path):
@@ -30,6 +29,6 @@ def predict_deadwood(dataset_id, file_path):
 		logger.info('Uploaded to supabase')
 	else:
 		logger.error(f'Error uploading to supabase: {res.json()}')
-		return HTTPException(status_code=500, detail='Error uploading to supabase')
+		raise ProcessingError(f'Error uploading to supabase: {res.json()}')
 
 	logger.info('Inference deadwood Done')

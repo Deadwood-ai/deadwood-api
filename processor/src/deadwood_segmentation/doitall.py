@@ -1,4 +1,4 @@
-import os
+	import os
 from json import loads, dumps
 from pathlib import Path
 
@@ -25,7 +25,7 @@ from .unet_model import UNet
 TCD_RESOLUTION = 0.1  # m -> tree crown detection only works as 10cm
 TCD_THRESHOLD = 200
 DEADWOOD_THRESHOLD = 0.5
-DEADWOOD_MODEL_PATH = '/app/src/deadwood_segmentation/model.safetensors'
+DEADWOOD_MODEL_PATH = '/app/processor/src/deadwood_segmentation/models/model.safetensors'
 TEMP_DIR = 'temp'
 os.makedirs(TEMP_DIR, exist_ok=True)
 

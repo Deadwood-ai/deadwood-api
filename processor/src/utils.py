@@ -2,10 +2,10 @@ import os
 import paramiko
 from pathlib import Path
 
-from ...shared.logger import logger
-from ...shared.settings import settings
-from ...shared.models import StatusEnum
-from ...shared.supabase import use_client
+from shared.logger import logger
+from shared.settings import settings
+from shared.models import StatusEnum
+from shared.supabase import use_client
 
 
 def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, token: str):
@@ -49,6 +49,10 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 
 
 def push_file_to_storage_server(local_file_path: str, remote_file_path: str, token: str):
+	if settings.dev_mode:
+		logger.info(f'Skipping push to storage server in dev mode: {local_file_path} -> {remote_file_path}')
+		return
+
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 		logger.info(

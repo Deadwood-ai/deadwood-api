@@ -1,16 +1,5 @@
-# Use NVIDIA CUDA base image with Ubuntu 22.04
-FROM nvidia/cuda:12.3.1-runtime-ubuntu22.04 as cuda_base
-
-# Use official GDAL image for Ubuntu
+# Start with GDAL image
 FROM ghcr.io/osgeo/gdal:ubuntu-full-latest
-
-# Copy CUDA libraries and runtime from the CUDA base image
-COPY --from=cuda_base /usr/local/cuda/lib64 /usr/local/cuda/lib64
-COPY --from=cuda_base /usr/local/cuda/include /usr/local/cuda/include
-
-# Set CUDA environment variables
-ENV PATH=/usr/local/cuda/bin:$PATH \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 # Install Python and development tools
 RUN apt-get update && apt-get install -y \
@@ -29,13 +18,14 @@ RUN echo "GDAL_VERSION=$(gdal-config --version)" >> /etc/environment
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal \
     C_INCLUDE_PATH=/usr/include/gdal
 
-# Install PyTorch with CUDA support
+# Install PyTorch - it will automatically detect GPU availability
 RUN pip3 install --no-cache-dir \
     torch \
     torchvision
 
 # Set up the application
 WORKDIR /app
+RUN mkdir -p /data
 
 # Copy and install requirements
 COPY processor/requirements.txt requirements.txt
@@ -44,8 +34,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt && \
 
 # Copy application files
 COPY ./processor/src /app/processor/src
-COPY ./processor/src/deadwood_segmentation/models/model.safetensors /app/processor/src/deadwood_segmentation/models/model.safetensors
 COPY ./shared /app/shared
+
+# Copy model file
+COPY ./processor/src/deadwood_segmentation/models/model.safetensors /app/processor/src/deadwood_segmentation/models/model.safetensors
 
 # Run the processor script
 CMD ["python3", "-m", "processor.src.processor"]

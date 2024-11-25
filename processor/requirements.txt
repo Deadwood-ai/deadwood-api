@@ -20,3 +20,6 @@ scikit-learn
 matplotlib
 safetensors
 opencv-python
+pytest
+pytest-cov
+debugpy

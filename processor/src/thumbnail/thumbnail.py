@@ -2,7 +2,8 @@ import rasterio
 from rasterio.enums import Resampling
 import numpy as np
 from PIL import Image
-from ..shared.logger import logger
+
+from shared.logger import logger
 
 
 def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256, 256)):
@@ -17,6 +18,8 @@ def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256
 	Returns:
 	    None
 	"""
+	logger.info(f'Starting thumbnail calculation with paths - input: {tiff_file_path}, output: {thumbnail_file_path}')
+
 	try:
 		with rasterio.open(tiff_file_path) as src:
 			# Calculate scaling factor
@@ -57,7 +60,9 @@ def calculate_thumbnail(tiff_file_path: str, thumbnail_file_path: str, size=(256
 			thumb.paste(img, offset)
 
 			# Save the thumbnail
+			logger.info(f'Saving thumbnail to: {thumbnail_file_path}')
 			thumb.save(thumbnail_file_path, 'JPEG', quality=85)
+			logger.info(f'Thumbnail saved successfully to: {thumbnail_file_path}')
 
 	except Exception as e:
 		logger.error(

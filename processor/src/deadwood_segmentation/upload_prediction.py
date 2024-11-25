@@ -1,9 +1,9 @@
 import requests
 
-from ..shared.supabase import login, verify_token, use_client
-from fastapi import HTTPException
-from ..shared.logger import logger
-from ..shared.settings import settings
+from shared.supabase import login, verify_token, use_client
+from shared.logger import logger
+from shared.settings import settings
+from ..exceptions import AuthenticationError
 
 
 def upload_to_supabase(dataset_id, label, aoi, label_type, label_source, label_quality):
@@ -12,7 +12,7 @@ def upload_to_supabase(dataset_id, label, aoi, label_type, label_source, label_q
 	token = login(settings.processor_username, settings.processor_password)
 	user = verify_token(token)
 	if not user:
-		return HTTPException(status_code=401, detail='Invalid token')
+		raise AuthenticationError('Invalid token')
 
 	try:
 		# print(f'Uploading to supabase: {api_endpoint}')

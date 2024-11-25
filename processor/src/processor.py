@@ -1,13 +1,13 @@
-from threading import Timer
-from fastapi import HTTPException
-from ...shared.models import QueueTask, StatusEnum
-from ...shared.settings import settings
-from ...shared.supabase import use_client, login, verify_token
+import shutil
+
+from shared.models import QueueTask, StatusEnum, Dataset
+from shared.settings import settings
+from shared.supabase import use_client, login, verify_token
+from shared.logger import logger
 from .process_thumbnail import process_thumbnail
 from .process_cog import process_cog
 from .process_deadwood_segmentation import process_deadwood_segmentation
-from ...shared.logger import logger
-import shutil
+from .exceptions import ProcessorError, AuthenticationError, DatasetError, ProcessingError, StorageError
 
 
 def current_running_tasks(token: str) -> int:
@@ -24,7 +24,6 @@ def current_running_tasks(token: str) -> int:
 		num_of_tasks = len(response.data)
 
 	return num_of_tasks
-
 
 def queue_length(token: str) -> int:
 	"""Get the number of tasks in the queue from supabase.
@@ -70,31 +69,66 @@ def is_dataset_uploaded_or_processed(task: QueueTask, token: str) -> bool:
 
 def process_task(task: QueueTask, token: str):
 	try:
-		# mark this task as processing
-		with use_client(token) as client:
-			client.table(settings.queue_table).update({'is_processing': True}).eq('id', task.id).execute()
+		# Verify token
+		user = verify_token(token)
+		if not user:
+			raise AuthenticationError('Invalid token', token=token, task_id=task.id)
 
+		# Load dataset
+		try:
+			with use_client(token) as client:
+				response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
+				dataset = Dataset(**response.data[0])
+		except Exception as e:
+			raise DatasetError(f'Failed to fetch dataset: {str(e)}', dataset_id=task.dataset_id, task_id=task.id)
+
+		# Process based on task type
 		if task.task_type in ['cog', 'all']:
-			process_cog(task, settings.tmp_processing_path)
+			try:
+				logger.info(f'processing cog to {settings.processing_path}')
+				process_cog(task, settings.processing_path)
+			except Exception as e:
+				raise ProcessingError(str(e), task_type='cog', task_id=task.id, dataset_id=task.dataset_id)
 
 		if task.task_type in ['thumbnail', 'all']:
-			process_thumbnail(task, settings.tmp_processing_path)
+			try:
+				logger.info(f'processing thumbnail to {settings.processing_path}')
+				process_thumbnail(task, settings.processing_path)
+			except Exception as e:
+				raise ProcessingError(str(e), task_type='thumbnail', task_id=task.id, dataset_id=task.dataset_id)
 		if task.task_type in ['deadwood_segmentation', 'all']:
-			process_deadwood_segmentation(task, token, settings.tmp_processing_path)
+			try:
+				process_deadwood_segmentation(task, token, settings.processing_path)
+			except Exception as e:
+				raise ProcessingError(
+					str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=task.dataset_id
+				)
 
-			# delete the task from the queue if processing was successful
+		# Delete task after successful processing
+		try:
+			with use_client(token) as client:
+				client.table(settings.queue_table).delete().eq('id', task.id).execute()
+		except Exception as e:
+			raise ProcessorError(f'Failed to delete completed task: {str(e)}', task_id=task.id)
 
-		token = login(settings.processor_username, settings.processor_password)
-		with use_client(token) as client:
-			client.table(settings.queue_table).delete().eq('id', task.id).execute()
-
+	except (AuthenticationError, DatasetError, ProcessingError, StorageError) as e:
+		logger.error(
+			str(e),
+			extra={
+				'token': token,
+				'task_id': getattr(e, 'task_id', None),
+				'dataset_id': getattr(e, 'dataset_id', None),
+				'error_type': e.__class__.__name__,
+			},
+		)
+		raise
 	except Exception as e:
-		# log the error to the database
-		msg = f'PROCESSOR error processing task {task.id}: {str(e)}'
+		msg = f'Unexpected error: {str(e)}'
 		logger.error(msg, extra={'token': token, 'task_id': task.id})
+		raise ProcessorError(msg, task_id=task.id) from e
 	finally:
-		# unlik temp folder
-		shutil.rmtree(settings.tmp_processing_path)
+		if not settings.dev_mode:
+			shutil.rmtree(settings.processing_path, ignore_errors=True)
 
 
 def background_process():
@@ -109,7 +143,7 @@ def background_process():
 	token = login(settings.processor_username, settings.processor_password)
 	user = verify_token(token)
 	if not user:
-		raise HTTPException(status_code=401, detail='Invalid token')
+		raise Exception(status_code=401, detail='Invalid token')
 
 	# get the number of currently running tasks
 	num_of_running = current_running_tasks(token)

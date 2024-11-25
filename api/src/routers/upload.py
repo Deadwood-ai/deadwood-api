@@ -68,7 +68,7 @@ async def upload_geotiff_chunk(
 
 			# Update dataset entry
 			dataset = create_initial_dataset_entry(
-				filename=str(target_path),
+				filename=file_name,
 				file_alias=filename,
 				user_id=user.id,
 				copy_time=copy_time,
