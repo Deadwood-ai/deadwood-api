@@ -25,6 +25,7 @@ def current_running_tasks(token: str) -> int:
 
 	return num_of_tasks
 
+
 def queue_length(token: str) -> int:
 	"""Get the number of tasks in the queue from supabase.
 
@@ -109,7 +110,9 @@ def process_task(task: QueueTask, token: str):
 			with use_client(token) as client:
 				client.table(settings.queue_table).delete().eq('id', task.id).execute()
 		except Exception as e:
-			raise ProcessorError(f'Failed to delete completed task: {str(e)}', task_id=task.id)
+			raise ProcessorError(
+				f'Failed to delete completed task: {str(e)}', task_type=task.task_type, task_id=task.id
+			)
 
 	except (AuthenticationError, DatasetError, ProcessingError, StorageError) as e:
 		logger.error(
@@ -125,7 +128,7 @@ def process_task(task: QueueTask, token: str):
 	except Exception as e:
 		msg = f'Unexpected error: {str(e)}'
 		logger.error(msg, extra={'token': token, 'task_id': task.id})
-		raise ProcessorError(msg, task_id=task.id) from e
+		raise ProcessorError(msg, task_type=task.task_type, task_id=task.id) from e
 	finally:
 		if not settings.dev_mode:
 			shutil.rmtree(settings.processing_path, ignore_errors=True)

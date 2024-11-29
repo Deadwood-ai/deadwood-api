@@ -213,7 +213,7 @@ class Cog(BaseModel):
 class MetadataPayloadData(PartialModelMixin, BaseModel):
 	# now the metadata
 	name: Optional[str] = None
-	# license: Optional[LicenseEnum] = None
+	license: Optional[LicenseEnum] = None
 	data_access: Optional[DatasetAccessEnum] = None
 	platform: Optional[PlatformEnum] = None
 	project_id: Optional[str] = None

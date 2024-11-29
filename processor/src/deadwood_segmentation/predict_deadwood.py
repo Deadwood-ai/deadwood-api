@@ -29,6 +29,8 @@ def predict_deadwood(dataset_id, file_path):
 		logger.info('Uploaded to supabase')
 	else:
 		logger.error(f'Error uploading to supabase: {res.json()}')
-		raise ProcessingError(f'Error uploading to supabase: {res.json()}')
+		raise ProcessingError(
+			f'Error uploading to supabase: {res.json()}', task_type='deadwood_segmentation', dataset_id=dataset_id
+		)
 
 	logger.info('Inference deadwood Done')

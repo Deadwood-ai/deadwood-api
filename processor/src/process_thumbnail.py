@@ -77,12 +77,12 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 			raise AuthenticationError('Token refresh failed', token=token, task_id=task.id)
 
 		with use_client(token) as client:
-			client.table(settings.thumbnail_table).upsert(
+			client.table(settings.thumbnails_table).upsert(
 				thumbnail.model_dump(),
 				on_conflict='dataset_id',
 			).execute()
-	except AuthenticationError:
-		raise
+	except DatasetError as e:
+		raise DatasetError(f'Failed to save thumbnail metadata: {str(e)}', dataset_id=dataset.id, task_id=task.id)
 	except Exception as e:
 		raise DatasetError(f'Failed to save thumbnail metadata: {str(e)}', dataset_id=dataset.id, task_id=task.id)
 

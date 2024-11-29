@@ -8,6 +8,31 @@ import tempfile
 load_dotenv()
 
 
+_production_tables = {
+	'datasets': 'v1_datasets',
+	'metadata': 'v1_metadata',
+	'cogs': 'v1_cogs',
+	'labels': 'v1_labels',
+	'thumbnails': 'v1_thumbnails',
+	'logs': 'logs',
+	'label_objects': 'v1_label_objects',
+	'queue': 'v1_queue',
+	'queue_positions': 'v1_queue_positions',
+}
+
+_dev_tables = {
+	'datasets': 'dev_datasets',
+	'metadata': 'dev_metadata',
+	'cogs': 'dev_cogs',
+	'labels': 'dev_labels',
+	'thumbnails': 'dev_thumbnails',
+	'logs': 'dev_logs',
+	'label_objects': 'dev_label_objects',
+	'queue': 'dev_queue',
+	'queue_positions': 'dev_queue_positions',
+}
+
+
 BASE = Path(__file__).parent.parent / 'data'
 
 
@@ -52,18 +77,15 @@ class Settings(BaseSettings):
 	ssh_private_key_path: str = '/app/ssh_key'
 	ssh_private_key_passphrase: str = ''
 
-	# Table names with conditional dev prefix
-	datasets_table: str = 'dev_datasets' if dev_mode else 'v1_datasets'
-	metadata_table: str = 'dev_metadata' if dev_mode else 'v1_metadata'
-	cogs_table: str = 'dev_cogs' if dev_mode else 'v1_cogs'
-	labels_table: str = 'dev_labels' if dev_mode else 'v1_labels'
-	thumbnail_table: str = 'dev_thumbnails' if dev_mode else 'v1_thumbnails'
-	logs_table: str = 'dev_logs' if dev_mode else 'logs'
-	label_objects_table: str = 'dev_label_objects' if dev_mode else 'label_objects'
-	queue_table: str = 'dev_queue' if dev_mode else 'queue'
-	queue_position_table: str = 'dev_queue_positions' if dev_mode else 'queue_positions'
-
 	processing_dir: str = 'processing'
+
+	_processing_path: Optional[Path] = None
+
+	@property
+	def processing_path(self) -> Path:
+		if self._processing_path is None:
+			self._processing_path = Path(tempfile.mkdtemp(prefix='processing_'))
+		return self._processing_path
 
 	@property
 	def base_path(self) -> Path:
@@ -106,9 +128,44 @@ class Settings(BaseSettings):
 		return path
 
 	@property
-	def processing_path(self) -> Path:
-		path = Path(tempfile.mkdtemp(prefix='processing'))
-		return path
+	def _tables(self) -> dict:
+		return _dev_tables if self.dev_mode else _production_tables
+
+	@property
+	def datasets_table(self) -> str:
+		return self._tables['datasets']
+
+	@property
+	def metadata_table(self) -> str:
+		return self._tables['metadata']
+
+	@property
+	def cogs_table(self) -> str:
+		return self._tables['cogs']
+
+	@property
+	def labels_table(self) -> str:
+		return self._tables['labels']
+
+	@property
+	def thumbnails_table(self) -> str:
+		return self._tables['thumbnails']
+
+	@property
+	def logs_table(self) -> str:
+		return self._tables['logs']
+
+	@property
+	def label_objects_table(self) -> str:
+		return self._tables['label_objects']
+
+	@property
+	def queue_table(self) -> str:
+		return self._tables['queue']
+
+	@property
+	def queue_position_table(self) -> str:
+		return self._tables['queue_positions']
 
 
 settings = Settings()
