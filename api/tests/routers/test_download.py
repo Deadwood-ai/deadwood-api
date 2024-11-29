@@ -1,14 +1,11 @@
 import pytest
-import requests
 from pathlib import Path
 import zipfile
-import json
-import time
+
 from shared.supabase import use_client
 from shared.settings import settings
 from fastapi.testclient import TestClient
 from api.src.server import app
-from fastapi import HTTPException
 
 client = TestClient(app)
 
@@ -27,11 +24,6 @@ def test_dataset(auth_token):
 		dataset_id = response.data[0]['id']
 
 		yield dataset_id  # Return the dataset ID for the test
-
-		# # Cleanup after all tests are done
-		# client.table(settings.metadata_table).update(
-		# 	{'admin_level_1': None, 'admin_level_2': None, 'admin_level_3': None}
-		# ).eq('dataset_id', dataset_id).execute()
 
 
 def test_download_dataset(auth_token, test_dataset):

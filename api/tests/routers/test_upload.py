@@ -25,11 +25,6 @@ def test_dataset(auth_token):
 
 		yield dataset_id  # Return the dataset ID for the test
 
-		# # Cleanup after all tests are done
-		# client.table(settings.metadata_table).update(
-		# 	{'admin_level_1': None, 'admin_level_2': None, 'admin_level_3': None}
-		# ).eq('dataset_id', dataset_id).execute()
-
 
 @pytest.fixture
 def test_file():
