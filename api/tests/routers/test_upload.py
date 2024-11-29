@@ -10,6 +10,27 @@ from shared.settings import settings
 client = TestClient(app)
 
 
+@pytest.fixture(scope='session')
+def test_dataset(auth_token):
+	"""Get the test dataset ID from the database.
+	Expects a dataset with file_alias = 'test-data.tif' to exist.
+	"""
+	with use_client(auth_token) as client:
+		response = client.table(settings.datasets_table).select('id').eq('file_alias', 'test-data.tif').execute()
+
+		if not response.data:
+			pytest.skip('Test dataset not found in database')
+
+		dataset_id = response.data[0]['id']
+
+		yield dataset_id  # Return the dataset ID for the test
+
+		# # Cleanup after all tests are done
+		# client.table(settings.metadata_table).update(
+		# 	{'admin_level_1': None, 'admin_level_2': None, 'admin_level_3': None}
+		# ).eq('dataset_id', dataset_id).execute()
+
+
 @pytest.fixture
 def test_file():
 	"""Fixture to provide test GeoTIFF file path"""
@@ -51,7 +72,6 @@ def test_upload_geotiff_chunk(test_file, auth_token, temp_upload_dir):
 	file_size = test_file.stat().st_size
 	chunks_total = (file_size + chunk_size - 1) // chunk_size
 	upload_id = 'test-upload-id'
-
 
 	# Read file in chunks and upload each chunk
 	with open(test_file, 'rb') as f:

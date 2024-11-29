@@ -99,10 +99,11 @@ def bundle_dataset(
 				archive.write(label_file.name, arcname='labels.gpkg')
 
 	# finally check if some of the extra-files can be provided
-	license_file = TEMPLATE_PATH / f'{metadata.license.value}.txt'
-	if license_file.exists():
-		with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-			archive.write(license_file, arcname='LICENSE.txt')
+	if metadata.license is not None:
+		license_file = TEMPLATE_PATH / f'{metadata.license.value.replace(" ", "-")}.txt'
+		if license_file.exists():
+			with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+				archive.write(license_file, arcname='LICENSE.txt')
 
 	# create the citation file
 	with tempfile.NamedTemporaryFile('w', suffix='.cff') as citation_file:

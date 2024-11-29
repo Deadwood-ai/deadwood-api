@@ -41,26 +41,22 @@ async def rate_limiting(request: Request, call_next: Callable[[Request], Respons
 	# get the ip
 	ip = request.client.host
 
-	# check if the IP is currently downlading
+	# check if the IP is currently downloading
 	if ip in CONNECTED_IPS:
-		return JSONResponse(
-			{'detail': 'Rate limit exceeded. You can only download one file at a time.'}, status_code=429
-		)
-	else:
-		# set the ip
-		CONNECTED_IPS[ip] = True
+		raise HTTPException(status_code=429, detail='Rate limit exceeded. You can only download one file at a time.')
+
+	# set the ip
+	CONNECTED_IPS[ip] = True
 
 	# do the response
 	try:
 		response = await call_next(request)
+		return response
 	except Exception as e:
-		return HTTPException(status_code=500, detail=str(e))
+		raise HTTPException(status_code=500, detail=str(e))
 	finally:
 		# in any case delete the ip again
 		del CONNECTED_IPS[ip]
-
-	# return the response
-	return response
 
 
 # add the gzip middleware

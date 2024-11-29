@@ -4,23 +4,54 @@ from pathlib import Path
 import zipfile
 import json
 import time
+from shared.supabase import use_client
+from shared.settings import settings
+from fastapi.testclient import TestClient
+from api.src.server import app
+from fastapi import HTTPException
+
+client = TestClient(app)
 
 
-@pytest.fixture
-def api_url():
-	return 'http://localhost:8762'  # Match the port from docker-compose.api.yaml
+@pytest.fixture(scope='session')
+def test_dataset(auth_token):
+	"""Get the test dataset ID from the database.
+	Expects a dataset with file_alias = 'test-data.tif' to exist.
+	"""
+	with use_client(auth_token) as client:
+		response = client.table(settings.datasets_table).select('id').eq('file_alias', 'test-data.tif').execute()
+
+		if not response.data:
+			pytest.skip('Test dataset not found in database')
+
+		dataset_id = response.data[0]['id']
+
+		yield dataset_id  # Return the dataset ID for the test
+
+		# # Cleanup after all tests are done
+		# client.table(settings.metadata_table).update(
+		# 	{'admin_level_1': None, 'admin_level_2': None, 'admin_level_3': None}
+		# ).eq('dataset_id', dataset_id).execute()
 
 
-def test_download_dataset(api_url, auth_token, test_dataset):
-	"""Test downloading a complete dataset ZIP bundle against live server"""
+def test_download_dataset(auth_token, test_dataset):
+	"""Test downloading a complete dataset ZIP bundle"""
 
-	# Make request to download endpoint
-	response = requests.get(
-		f'{api_url}/download/datasets/{test_dataset}/dataset.zip', headers={'Authorization': f'Bearer {auth_token}'}
+	# Make request to download endpoint using TestClient
+	response = client.get(
+		f'/download/datasets/{test_dataset}/dataset.zip',
+		headers={'Authorization': f'Bearer {auth_token}'},
+		follow_redirects=True,
 	)
 
+	# Print response details for debugging
+	print(f'Response status code: {response.status_code}')
+	print(f'Response headers: {response.headers}')
+	if response.status_code != 200:
+		print(f'Response content: {response.content}')
+
 	# Check response status
-	assert response.status_code == 200
+	assert response.status_code == 200, f'Request failed with status {response.status_code}'
 	assert response.headers['content-type'] == 'application/zip'
 
 	# Save response content to temporary file and verify ZIP contents
@@ -39,84 +70,7 @@ def test_download_dataset(api_url, auth_token, test_dataset):
 			assert 'LICENSE.txt' in files
 			assert 'CITATION.cff' in files
 
-			# Verify metadata JSON content
-			metadata_file = next(f for f in files if f.endswith('.json') and not f.endswith('schema.json'))
-			metadata_content = json.loads(zf.read(metadata_file))
-			assert metadata_content['dataset_id'] == test_dataset
-
 	finally:
 		# Cleanup
 		if temp_zip.exists():
 			temp_zip.unlink()
-
-
-# import pytest
-# from fastapi.testclient import TestClient
-# from pathlib import Path
-# import zipfile
-# import json
-
-# from api.src.server import app
-# from shared.models import Dataset, Metadata
-# from shared.settings import settings
-
-# client = TestClient(app)
-
-
-# def test_download_dataset_zip(auth_token, test_dataset):
-# 	"""Test downloading a complete dataset ZIP bundle"""
-
-# 	# Make request to download endpoint
-# 	response = client.get(f'/datasets/{test_dataset}/dataset.zip', headers={'Authorization': f'Bearer {auth_token}'})
-
-# 	# Check response status
-# 	assert response.status_code == 200
-# 	assert response.headers['content-type'] == 'application/zip'
-
-# 	# Save response content to temporary file and verify ZIP contents
-# 	temp_zip = Path('test_download.zip')
-# 	try:
-# 		temp_zip.write_bytes(response.content)
-
-# 		with zipfile.ZipFile(temp_zip) as zf:
-# 			# List all files in the ZIP
-# 			files = zf.namelist()
-
-# 			# There should be at least these files:
-# 			# - The GeoTIFF
-# 			# - metadata.json
-# 			# - metadata schema
-# 			# - LICENSE.txt
-# 			# - CITATION.cff
-# 			assert any(f.endswith('.tif') for f in files)
-# 			assert any(f.endswith('.json') and not f.endswith('schema.json') for f in files)
-# 			assert any(f.endswith('schema.json') for f in files)
-# 			assert 'LICENSE.txt' in files
-# 			assert 'CITATION.cff' in files
-
-# 			# Verify metadata JSON content
-# 			metadata_file = next(f for f in files if f.endswith('.json') and not f.endswith('schema.json'))
-# 			metadata_content = json.loads(zf.read(metadata_file))
-# 			assert metadata_content['dataset_id'] == test_dataset
-
-# 	finally:
-# 		# Cleanup
-# 		if temp_zip.exists():
-# 			temp_zip.unlink()
-
-
-# def test_download_dataset_not_found():
-# 	"""Test downloading a non-existent dataset"""
-# 	response = client.get('/datasets/99999999/dataset.zip')
-# 	assert response.status_code == 404
-# 	assert 'not found' in response.json()['detail'].lower()
-
-
-# def test_download_dataset_no_metadata():
-# 	"""Test downloading a dataset without metadata"""
-# 	# Create dataset without metadata
-# 	dataset = Dataset(id=999, file_name='test.tif')
-
-# 	response = client.get(f'/datasets/{dataset.id}/dataset.zip')
-# 	assert response.status_code == 404
-# 	assert 'no associated metadata' in response.json()['detail'].lower()

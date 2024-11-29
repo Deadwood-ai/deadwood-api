@@ -35,7 +35,8 @@ services:
       - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
       - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
       - DEV_MODE=${DEV_MODE}
-    command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
+    # command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
+    command: pytest processor/tests -v --cov=processor/src --cov-report=term-missing
 
   api-test:
     build:
@@ -70,5 +71,5 @@ services:
       # - QUEUE_POSITION_TABLE=${QUEUE_POSITION_TABLE}
       # - LOGS_TABLE=${LOGS_TABLE}
       - DEV_MODE=${DEV_MODE}
-    # command: pytest api/tests -v --cov=api/src --cov-report=term-missing
-    command: python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m pytest
+    command: pytest api/tests -v --cov=api/src --cov-report=term-missing
+    # command: python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m pytest
