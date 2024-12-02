@@ -26,22 +26,21 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 	# first thing we do is verify the token
 	user = verify_token(token)
 	if not user:
-		return HTTPException(status_code=401, detail='Invalid token')
+		raise HTTPException(status_code=401, detail='Invalid token')
 
 	# load the the dataset info for this one
 	try:
 		with use_client(token) as client:
-			# filter using the given dataset_id
 			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
-
-			# create the dataset
+			if not response.data:
+				raise HTTPException(status_code=404, detail=f'Dataset {dataset_id} not found')
 			dataset = Dataset(**response.data[0])
+	except HTTPException as e:
+		raise e
 	except Exception as e:
-		# log the error to the database
 		msg = f'Error loading dataset {dataset_id}: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
-
-		return HTTPException(status_code=500, detail=msg)
+		raise HTTPException(status_code=500, detail=msg)
 
 	# verify the data
 	try:
@@ -51,7 +50,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 		msg = f'Invalid label data: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
 
-		return HTTPException(status_code=400, detail=msg)
+		raise HTTPException(status_code=400, detail=msg)
 
 	# fill the metadata
 	meta = dict(
@@ -71,7 +70,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 		msg = f'Error creating label object: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset.id})
 
-		return HTTPException(status_code=400, detail=msg)
+		raise HTTPException(status_code=400, detail=msg)
 
 	# upload the dataset
 	with use_client(token) as client:
@@ -83,7 +82,7 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 
 			# log the error to the database
 			logger.error(msg, extra={'token': token, 'dataset_id': dataset.id, 'user_id': user.id})
-			return HTTPException(status_code=400, detail=msg)
+			raise HTTPException(status_code=400, detail=msg)
 
 	# re-build the label from the response
 	label = Label(**response.data[0])
@@ -108,13 +107,23 @@ async def upload_user_labels(
 	label_description: Annotated[str, Form()],
 	token: Annotated[str, Depends(oauth2_scheme)],
 ):
-	"""
-	Upload a label object.
-	"""
-
+	"""Upload a label object."""
 	user = verify_token(token)
 	if not user:
 		raise HTTPException(status_code=401, detail='Invalid token')
+
+	# Check if dataset exists first
+	try:
+		with use_client(token) as client:
+			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
+			if not response.data:
+				raise HTTPException(status_code=404, detail=f'Dataset {dataset_id} not found')
+	except HTTPException as e:
+		raise e
+	except Exception as e:
+		logger.error(f'Error checking dataset existence: {str(e)}', extra={'token': token})
+		raise HTTPException(status_code=500, detail='Internal server error')
+
 	logger.info(f'Received label object for dataset {dataset_id} from user {user_id}', extra={'token': token})
 
 	# create folder if not exists settings.labels_objects_path / dataset_id

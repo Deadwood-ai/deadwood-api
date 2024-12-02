@@ -36,7 +36,7 @@ def upsert_metadata(
 	# first thing we do is verify the token
 	user = verify_token(token)
 	if not user:
-		return HTTPException(status_code=401, detail='Invalid token')
+		raise HTTPException(status_code=401, detail='Invalid token')
 
 	logger.info(
 		f'Upserting metadata for Dataset {dataset_id}',
@@ -58,7 +58,7 @@ def upsert_metadata(
 	except Exception as e:
 		msg = f'An error occurred while trying to get the metadata of Dataset <ID={dataset_id}>: {str(e)}'
 		logger.exception(msg, extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
-		return HTTPException(status_code=400, detail=msg)
+		raise HTTPException(status_code=400, detail=msg)
 
 	# update the given metadata if any with the payload
 	try:
@@ -68,7 +68,7 @@ def upsert_metadata(
 		msg = f'An error occurred while trying to create the updated metadata: {str(e)}'
 
 		logger.exception(msg, extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id})
-		return HTTPException(status_code=400, detail=msg)
+		raise HTTPException(status_code=400, detail=msg)
 
 	try:
 		# upsert the given metadata entry with the merged data
@@ -85,7 +85,7 @@ def upsert_metadata(
 		)
 
 		# return a response with the error message
-		return HTTPException(status_code=400, detail=err_msg)
+		raise HTTPException(status_code=400, detail=err_msg)
 
 	# no error occured, so return the upserted metadata
 	logger.info(
@@ -101,7 +101,7 @@ def upsert_metadata(
 		logger.exception(
 			f'Error updating admin level information for dataset {dataset_id}: {str(e)}', extra={'token': token}
 		)
-		return HTTPException(
+		raise HTTPException(
 			status_code=400, detail=f'Error updating admin level information for dataset {dataset_id}: {str(e)}'
 		)
 	metadata = Metadata(**response.data[0])
