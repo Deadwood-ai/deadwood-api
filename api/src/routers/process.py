@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from shared.supabase import verify_token, use_client
 from shared.settings import settings
-from shared.models import Dataset, ProcessOptions, TaskPayload, QueueTask, StatusEnum, Cog, TaskTypeEnum
+from shared.models import ProcessOptions, TaskPayload, QueueTask, TaskTypeEnum
 from shared.logger import logger
 
 # create the router for the processing
@@ -27,7 +27,7 @@ def create_processing_task(
 	# Verify the token
 	user = verify_token(token)
 	if not user:
-		return HTTPException(status_code=401, detail='Invalid token')
+		raise HTTPException(status_code=401, detail='Invalid token')
 
 	# Validate task_type
 	task_type = TaskTypeEnum(task_type)
@@ -37,11 +37,13 @@ def create_processing_task(
 		with use_client(token) as client:
 			response = client.table(settings.datasets_table).select('*').eq('id', dataset_id).execute()
 			if not response.data:
-				return HTTPException(status_code=404, detail=f'Dataset <ID={dataset_id}> not found.')
+				raise HTTPException(status_code=404, detail=f'Dataset <ID={dataset_id}> not found.')
+	except HTTPException:
+		raise  # Re-raise HTTP exceptions directly
 	except Exception as e:
 		msg = f'Error loading dataset {dataset_id}: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
-		return HTTPException(status_code=500, detail=msg)
+		raise HTTPException(status_code=500, detail=msg)
 
 	# Create the task payload
 	payload = TaskPayload(
@@ -68,7 +70,7 @@ def create_processing_task(
 	except Exception as e:
 		msg = f'Error adding {task_type} task to queue: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
-		return HTTPException(status_code=500, detail=msg)
+		raise HTTPException(status_code=500, detail=msg)
 
 	# Load the current position assigned to this task
 	try:
@@ -113,7 +115,7 @@ def create_processing_task(
 	except Exception as e:
 		msg = f'Error loading task position: {str(e)}'
 		logger.error(msg, extra={'token': token, 'user_id': user.id, 'dataset_id': dataset_id})
-		return HTTPException(status_code=500, detail=msg)
+		raise HTTPException(status_code=500, detail=msg)
 
 
 # # @router.put("/datasets/{dataset_id}/force-cog-build")
