@@ -30,19 +30,20 @@ def patch_test_file(test_file, auth_token):
 	# Create processing directory if it doesn't exist
 	settings.processing_path.mkdir(parents=True, exist_ok=True)
 
-	with use_client(auth_token) as client:
-		response = client.table(settings.datasets_table).select('file_name').eq('id', DATASET_ID).execute()
-		file_name = response.data[0]['file_name']
-	if not response.data:
-		pytest.skip('Dataset not found in database')
+	try:
+		with use_client(auth_token) as client:
+			response = client.table(settings.datasets_table).select('file_name').eq('id', DATASET_ID).execute()
+			file_name = response.data[0]['file_name']
+		if not response.data:
+			pytest.skip('Dataset not found in database')
 
-	# Copy file to processing directory
-	dest_path = settings.processing_path / file_name
+		# Copy file to processing directory
+		dest_path = settings.processing_path / file_name
+		shutil.copy2(test_file, dest_path)
 
-	shutil.copy2(test_file, dest_path)
+		yield test_file
 
-	yield test_file
-
-	# Cleanup processing directory after test
-	if settings.processing_path.exists():
-		shutil.rmtree(settings.processing_path)
+	finally:
+		# Cleanup processing directory after test
+		if settings.processing_path.exists():
+			shutil.rmtree(settings.processing_path)

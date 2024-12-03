@@ -23,7 +23,7 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - BASE_DIR=/data
-      - DEV_MODE=true
+      # - DEV_MODE=true
       # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
       # - DATASETS_TABLE=${DATASETS_TABLE}
       # - METADATA_TABLE=${METADATA_TABLE}
@@ -61,7 +61,7 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - BASE_DIR=/data
-      - DEV_MODE=true
+      #- DEV_MODE=true
       # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
       # - DATASETS_TABLE=${DATASETS_TABLE}
       # - METADATA_TABLE=${METADATA_TABLE}
