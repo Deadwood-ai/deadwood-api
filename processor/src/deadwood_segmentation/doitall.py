@@ -24,98 +24,134 @@ from .unet_model import UNet
 
 TCD_RESOLUTION = 0.1  # m -> tree crown detection only works as 10cm
 TCD_THRESHOLD = 200
-DEADWOOD_THRESHOLD = 0.5
+DEADWOOD_THRESHOLD = 0.9
 DEADWOOD_MODEL_PATH = str(Path(__file__).parent / 'models/model.safetensors')
 TEMP_DIR = 'temp'
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+DEBUG = False
 
 def reproject_to_10cm(input_tif, output_tif):
-	"""takes an input tif file and reprojects it to 10cm resolution and writes it to output_tif"""
+    """takes an input tif file and reprojects it to 10cm resolution and writes it to output_tif"""
 
-	with rasterio.open(input_tif) as src:
-		# figure out centroid in epsg 4326
-		centroid = src.lnglat()
+    with rasterio.open(input_tif) as src:
+        # figure out centroid in epsg 4326
+        centroid = src.lnglat()
 
-		# dst crs is native utm zone for max precision
-		dst_crs = utm.from_latlon(centroid[1], centroid[0])
+        # dst crs is native utm zone for max precision
+        dst_crs = utm.from_latlon(centroid[1], centroid[0])
 
-		transform, width, height = calculate_default_transform(
-			src.crs,
-			dst_crs,
-			src.width,
-			src.height,
-			*src.bounds,
-			resolution=TCD_RESOLUTION,
-		)
+        transform, width, height = calculate_default_transform(
+            src.crs,
+            dst_crs,
+            src.width,
+            src.height,
+            *src.bounds,
+            resolution=TCD_RESOLUTION)
 
-		kwargs = src.meta.copy()
-		kwargs.update({'crs': dst_crs, 'transform': transform, 'width': width, 'height': height})
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })
 
-		with rasterio.open(output_tif, 'w', **kwargs) as dst:
-			for i in range(1, src.count + 1):
-				reproject(
-					source=rasterio.band(src, i),
-					destination=rasterio.band(dst, i),
-					src_transform=src.transform,
-					src_crs=src.crs,
-					dst_transform=transform,
-					dst_crs=dst_crs,
-					resampling=Resampling.nearest,
-				)
+        with rasterio.open(output_tif, 'w', **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(source=rasterio.band(src, i),
+                          destination=rasterio.band(dst, i),
+                          src_transform=src.transform,
+                          src_crs=src.crs,
+                          dst_transform=transform,
+                          dst_crs=dst_crs,
+                          resampling=Resampling.nearest)
 
+def merge_polygons(contours, hierarchy) -> MultiPolygon:
+    """
+    adapted from: https://stackoverflow.com/a/75510437/8832008
+    """
+
+    # https://docs.opencv.org/4.x/d9/d8b/tutorial_py_contours_hierarchy.html
+    # hierarchy structure: [next, prev, first_child, parent]
+
+    def make_valid(polygon):
+        if not polygon.is_valid:
+            polygon = polygon.buffer(0)
+        return polygon
+
+    polygons = []
+
+    if DEBUG:
+        pbar = tqdm(total=len(contours))
+
+    idx = 0
+    while idx != -1:
+        # Get contour from global list of contours
+        contour = np.squeeze(contours[idx])
+
+        if DEBUG:
+            pbar.update(1)
+
+        # cv2.findContours() sometimes returns a single point -> skip this case
+        if len(contour) > 2:
+            # Convert contour to shapely polygon
+            holes = []
+
+            # check if there is a child
+            child_idx = hierarchy[idx][2]
+            if child_idx != -1:
+                # iterate over all children and add them as holes
+                while child_idx != -1:
+                    if DEBUG:
+                        pbar.update(1)
+                    child = np.squeeze(contours[child_idx])
+                    if len(child) > 2:
+                        holes.append(child)
+                    child_idx = hierarchy[child_idx][0]
+
+            new_poly = Polygon(shell=contour, holes=holes)
+
+            # save poly
+            polygons.append(new_poly)
+
+        # Check if there is some next polygon at the same hierarchy level
+        idx = hierarchy[idx][0]
+
+    return polygons
 
 def mask_to_polygons(mask, dataset_reader):
-	"""
-	this function takes a numpy mask as input and returns a list of polygons
-	that are in the crs of the passed dataset reader
-	"""
+    """
+    this function takes a numpy mask as input and returns a list of polygons
+    that are in the crs of the passed dataset reader
+    """
+    contours, hierarchy = cv2.findContours(mask.astype(np.uint8).copy(),
+                                         mode=cv2.RETR_CCOMP,
+                                         method=cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Return empty list if no contours found
+    if len(contours) == 0:
+        return []
 
-	padding = 10
+    hierarchy = hierarchy[0]
 
-	# add padding for cv to work properly
-	mask_padded = np.pad(mask[0], padding)
+    poly = merge_polygons(contours, hierarchy)
 
-	contours, _ = cv2.findContours(
-		mask.astype(np.uint8).copy(),
-		mode=cv2.RETR_EXTERNAL,
-		method=cv2.CHAIN_APPROX_SIMPLE,
-	)
-	poly = []
-	for p in contours:
-		if len(p) == 1:
-			continue
+    # affine transform from pixel to world coordinates
+    transform = dataset_reader.transform
+    transform_matrix = (transform.a, transform.b, transform.d, transform.e,
+                       transform.c, transform.f)
+    poly = [affine_transform(p, transform_matrix) for p in poly]
 
-		p = p.squeeze()
-		p = np.concatenate([p, p[:1]], axis=0)
-		p = Polygon(p)
-
-		# reverse padding effect
-		p = translate(p, xoff=-padding, yoff=-padding)
-
-		poly.append(p)
-
-	# affine transform from pixel to world coordinates
-	transform = dataset_reader.transform
-	transform_matrix = (
-		transform.a,
-		transform.b,
-		transform.d,
-		transform.e,
-		transform.c,
-		transform.f,
-	)
-	poly = [affine_transform(p, transform_matrix) for p in poly]
-
-	return poly
+    return poly
 
 
 def get_utm_string_from_latlon(lat, lon):
-	zone = utm.from_latlon(lat, lon)
-	utm_code = 32600 + zone[2]
-	if lat < 0:
-		utm_code -= 100
-	return f'EPSG:{utm_code}'
+    zone = utm.from_latlon(lat, lon)
+    utm_code = 32600 + zone[2]
+    if lat < 0:
+        utm_code -= 100
+    return f"EPSG:{utm_code}"
 
 
 def inference_deadwood(input_tif: str):
@@ -135,8 +171,8 @@ def inference_deadwood(input_tif: str):
 
 	loader_args = {
 		'batch_size': 1,
-		# 'num_workers': 2,
-		'num_workers': 0,
+		'num_workers': 2,
+		# 'num_workers': 0,
 		'pin_memory': True,
 		'shuffle': False,
 	}
@@ -189,6 +225,10 @@ def inference_deadwood(input_tif: str):
 
 	# get polygons from mask
 	polygons = mask_to_polygons(outimage, dataset.image_src)
+    
+	# If no polygons were found, return empty list
+	if not polygons:
+		return []
 
 	return polygons
 
