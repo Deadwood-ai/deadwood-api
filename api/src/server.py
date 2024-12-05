@@ -1,7 +1,10 @@
 from fastapi import FastAPI, Response
 from starlette.middleware.cors import CORSMiddleware
 
+from shared import monitoring
+import logfire
 
+# TODO: refactor this
 import prometheus_client
 
 from shared.__version__ import __version__
@@ -12,6 +15,8 @@ app = FastAPI(
 	description='This is the Deadwood-AI API. It is used to manage files uploads to the Deadwood-AI backend and the preprocessing of uploads. Note that the download is managed by a sub-application at `/download/`.',
 	version=__version__,
 )
+
+logfire.instrument_fastapi(app)
 
 # add CORS middleware
 app.add_middleware(

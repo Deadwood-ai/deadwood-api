@@ -1,3 +1,11 @@
+import logfire
+
+# first thing we to is configure logfire
+logfire.configure()
+
+# TODO: anything down here needs to be removed and all references to it need to be checked.
+# if there are any references that log or measure something that logfire does not catch
+# we need to log it in similar fashion.
 from prometheus_client import Counter, Histogram
 
 
