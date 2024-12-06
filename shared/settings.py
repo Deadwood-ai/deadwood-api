@@ -83,6 +83,7 @@ class Settings(BaseSettings):
 
 	# monitoring
 	LOGFIRE_TOKEN: str = None
+	LOGFIRE_PYDANTIC_PLUGIN_RECORD: str = 'all'
 
 	@property
 	def processing_path(self) -> Path:
