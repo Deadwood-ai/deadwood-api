@@ -8,7 +8,6 @@ from shared.settings import settings
 from shared.logger import logger
 from shared.models import Dataset, Label, LabelPayloadData, UserLabelObject
 from ..labels.labels import verify_labels
-from shared import monitoring
 
 # create the router for the labels
 router = APIRouter()
@@ -20,9 +19,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 @router.post('/datasets/{dataset_id}/labels')
 def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[str, Depends(oauth2_scheme)]):
 	""" """
-	# count an invoke
-	monitoring.label_invoked.inc()
-
 	# first thing we do is verify the token
 	user = verify_token(token)
 	if not user:
@@ -88,7 +84,6 @@ def create_new_labels(dataset_id: int, data: LabelPayloadData, token: Annotated[
 	label = Label(**response.data[0])
 
 	# do some monitoring
-	monitoring.label_counter.inc()
 	logger.info(
 		f'Created new label <ID={label.id}> for dataset {dataset_id}.',
 		extra={'token': token, 'dataset_id': dataset_id, 'user_id': user.id},

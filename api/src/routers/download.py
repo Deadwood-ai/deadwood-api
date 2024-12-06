@@ -13,7 +13,6 @@ from shared.__version__ import __version__
 from shared.models import Dataset, Label, Metadata
 from shared.settings import settings
 from api.src.download.downloads import bundle_dataset, label_to_geopackage
-from shared import monitoring
 
 # first approach to implement a rate limit
 CONNECTED_IPS = {}
@@ -96,8 +95,7 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
 	if metadata is None:
 		raise HTTPException(status_code=404, detail=f'Dataset <ID={dataset_id}> has no associated Metadata entry.')
 
-	# here we can add the monitoring
-	monitoring.download_dataset.inc()
+
 
 	# load the label
 	# TODO: this loads immer nur das erste Label!!!
