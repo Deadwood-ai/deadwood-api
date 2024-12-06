@@ -28,6 +28,7 @@ services:
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}
 
   migrate:
     build:

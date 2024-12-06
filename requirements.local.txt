@@ -4,7 +4,6 @@ pydantic_partial
 python-dotenv
 python-multipart
 supabase
-prometheus-client
 rasterio==1.4.2
 rio-cogeo
 fire
@@ -29,3 +28,4 @@ aiofiles
 httpx
 pytest-mock
 pyyaml
+logfire[fastapi,system-metrics]

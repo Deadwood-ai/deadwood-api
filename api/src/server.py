@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Response
 from starlette.middleware.cors import CORSMiddleware
 
-
-import prometheus_client
+from shared import monitoring
 
 from shared.__version__ import __version__
 from .routers import process, upload, info, auth, labels, download, metadata
@@ -13,6 +12,9 @@ app = FastAPI(
 	version=__version__,
 )
 
+monitoring.logfire.instrument_fastapi(app)
+
+
 # add CORS middleware
 app.add_middleware(
 	CORSMiddleware,
@@ -22,15 +24,6 @@ app.add_middleware(
 	allow_methods=['OPTIONS', 'GET', 'POST', 'PUT'],
 	allow_headers=['Content-Type', 'Authorization', 'Origin', 'Accept'],
 )
-
-
-# add the prometheus metrics route
-@app.get('/metrics')
-def get_metrics():
-	"""
-	Supplys Prometheus metrics for the storage API.
-	"""
-	return Response(prometheus_client.generate_latest(), media_type='text/plain')
 
 
 # add the info route to the app
