@@ -11,7 +11,6 @@ from shared.models import Metadata, MetadataPayloadData
 from shared.supabase import use_client, verify_token
 from shared.settings import settings
 from shared.logger import logger
-from shared import monitoring
 
 from ..upload.upload import create_initial_dataset_entry, get_transformed_bounds, get_file_identifier
 
@@ -120,9 +119,6 @@ async def upload_geotiff_chunk(
 # 	```
 
 # 	"""
-# 	# count an invoke
-# 	monitoring.uploads_invoked.inc()
-
 # 	# first thing we do is verify the token
 # 	user = verify_token(token)
 # 	if not user:
@@ -195,11 +191,6 @@ async def upload_geotiff_chunk(
 
 # 	# update the dataset with the id
 # 	dataset = Dataset(**response.data[0])
-
-# 	# do some monitoring
-# 	monitoring.uploads_counter.inc()
-# 	monitoring.upload_time.observe(dataset.copy_time)
-# 	monitoring.upload_size.observe(dataset.file_size)
 
 # 	logger.info(
 # 		f'Created new dataset <ID={dataset.id}> with file {dataset.file_alias}. ({format_size(dataset.file_size)}). Took {dataset.copy_time:.2f}s.',
