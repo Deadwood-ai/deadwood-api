@@ -17,16 +17,16 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 		pkey = paramiko.RSAKey.from_private_key_file(
-			settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase
+			settings.SSH_PRIVATE_KEY_PATH, password=settings.SSH_PRIVATE_KEY_PASSPHRASE
 		)
 		logger.info(
-			f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}',
+			f'Connecting to storage server: {settings.STORAGE_SERVER_IP} as {settings.STORAGE_SERVER_USERNAME}',
 			extra={'token': token},
 		)
 
 		ssh.connect(
-			hostname=settings.storage_server_ip,
-			username=settings.storage_server_username,
+			hostname=settings.STORAGE_SERVER_IP,
+			username=settings.STORAGE_SERVER_USERNAME,
 			pkey=pkey,
 			port=22,  # Add this line to specify the default SSH port
 		)
@@ -49,22 +49,22 @@ def pull_file_from_storage_server(remote_file_path: str, local_file_path: str, t
 
 
 def push_file_to_storage_server(local_file_path: str, remote_file_path: str, token: str):
-	if settings.dev_mode:
+	if settings.DEV_MODE:
 		logger.info(f'Skipping push to storage server in dev mode: {local_file_path} -> {remote_file_path}')
 		return
 
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 		logger.info(
-			f'Connecting to storage server: {settings.storage_server_ip} as {settings.storage_server_username}',
+			f'Connecting to storage server: {settings.STORAGE_SERVER_IP} as {settings.STORAGE_SERVER_USERNAME}',
 			extra={'token': token},
 		)
 		pkey = paramiko.RSAKey.from_private_key_file(
-			settings.ssh_private_key_path, password=settings.ssh_private_key_passphrase
+			settings.SSH_PRIVATE_KEY_PATH, password=settings.SSH_PRIVATE_KEY_PASSPHRASE
 		)
 		ssh.connect(
-			hostname=settings.storage_server_ip,
-			username=settings.storage_server_username,
+			hostname=settings.STORAGE_SERVER_IP,
+			username=settings.STORAGE_SERVER_USERNAME,
 			pkey=pkey,
 			port=22,  # Add this line to specify the default SSH port
 		)

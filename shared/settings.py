@@ -39,47 +39,48 @@ BASE = Path(__file__).parent.parent / 'data'
 # load the settings from environment variables
 class Settings(BaseSettings):
 	# base directory for the storage app
-	base_dir: str = str(BASE)
+	BASE_DIR: str = str(BASE)
+	GADM_DATA_PATH: str = '/gadm/gadm_410.gpkg'
 
-	dev_mode: bool = False
+	DEV_MODE: bool = False
 
 	# directly specify the locations for several files
-	archive_dir: str = 'archive'
-	cog_dir: str = 'cogs'
-	thumbnails_dir: str = 'thumbnails'
-	label_objects_dir: str = 'label_objects'
+	ARCHIVE_DIR: str = 'archive'
+	COG_DIR: str = 'cogs'
+	THUMBNAIL_DIR: str = 'thumbnails'
+	LABEL_OBJECTS_DIR: str = 'label_objects'
 
 	# Temporary processing directory
 	# tmp_processing_path: str = str(Path(tempfile.mkdtemp(prefix='processing')))
 
 	# supabase settings for supabase authentication
-	supabase_url: Optional[str] = None
-	supabase_key: Optional[str] = None
+	SUPABASE_URL: Optional[str] = None
+	SUPABASE_KEY: Optional[str] = None
 
 	# some basic settings for the UVICORN server
-	uvicorn_host: str = '127.0.0.1'
-	uvicorn_port: int = 8000
-	uvicorn_root_path: str = ''
-	uvicorn_proxy_headers: bool = True
+	UVICORN_HOST: str = '127.0.0.1'
+	UVICORN_PORT: int = 8000
+	UVICORN_ROOT_PATH: str = ''
+	UVICORN_PROXY_HEADERS: bool = True
 
 	# storage server settings
-	storage_server_ip: str = ''
-	storage_server_username: str = ''
-	storage_server_data_path: str = ''
+	STORAGE_SERVER_IP: str = ''
+	STORAGE_SERVER_USERNAME: str = ''
+	STORAGE_SERVER_DATA_PATH: str = ''
 
 	# api endpoint
-	api_endpoint: str = 'https://data.deadtrees.earth/api/v1/'
-	api_endpoint_datasets: str = api_endpoint + 'datasets/'
+	API_ENDPOINT: str = 'https://data.deadtrees.earth/api/v1/'
+	API_ENTPOINT_DATASETS: str = API_ENDPOINT + 'datasets/'
 
 	# processor settings
-	processor_username: str = 'processor@deadtrees.earth'
-	processor_password: str = 'processor'
-	ssh_private_key_path: str = '/app/ssh_key'
-	ssh_private_key_passphrase: str = ''
+	PROCESSOR_USERNAME: str = 'processor@deadtrees.earth'
+	PROCESSOR_PASSWORD: str = 'processor'
+	SSH_PRIVATE_KEY_PATH: str = '/app/ssh_key'
+	SSH_PRIVATE_KEY_PASSPHRASE: str = ''
 
 	processing_dir: str = 'processing'
 
-	_processing_path: Optional[Path] = None
+	_PROCESSING_PATH: Optional[Path] = None
 
 	# monitoring
 	LOGFIRE_TOKEN: str = None
@@ -87,13 +88,13 @@ class Settings(BaseSettings):
 
 	@property
 	def processing_path(self) -> Path:
-		if self._processing_path is None:
-			self._processing_path = Path(tempfile.mkdtemp(prefix='processing_'))
-		return self._processing_path
+		if self._PROCESSING_PATH is None:
+			self._PROCESSING_PATH = Path(tempfile.mkdtemp(prefix='processing_'))
+		return self._PROCESSING_PATH
 
 	@property
 	def base_path(self) -> Path:
-		path = Path(self.base_dir)
+		path = Path(self.BASE_DIR)
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
@@ -101,7 +102,7 @@ class Settings(BaseSettings):
 
 	@property
 	def archive_path(self) -> Path:
-		path = self.base_path / self.archive_dir
+		path = self.base_path / self.ARCHIVE_DIR
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +110,7 @@ class Settings(BaseSettings):
 
 	@property
 	def cog_path(self) -> Path:
-		path = self.base_path / self.cog_dir
+		path = self.base_path / self.COG_DIR
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
@@ -117,7 +118,7 @@ class Settings(BaseSettings):
 
 	@property
 	def thumbnail_path(self) -> Path:
-		path = self.base_path / self.thumbnails_dir
+		path = self.base_path / self.THUMBNAIL_DIR
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
@@ -125,7 +126,7 @@ class Settings(BaseSettings):
 
 	@property
 	def user_label_path(self) -> Path:
-		path = self.base_path / self.label_objects_dir
+		path = self.base_path / self.LABEL_OBJECTS_DIR
 		if not path.exists():
 			path.mkdir(parents=True, exist_ok=True)
 
@@ -133,7 +134,7 @@ class Settings(BaseSettings):
 
 	@property
 	def _tables(self) -> dict:
-		return _dev_tables if self.dev_mode else _production_tables
+		return _dev_tables if self.DEV_MODE else _production_tables
 
 	@property
 	def datasets_table(self) -> str:

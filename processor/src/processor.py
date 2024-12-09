@@ -130,7 +130,7 @@ def process_task(task: QueueTask, token: str):
 		logger.error(msg, extra={'token': token, 'task_id': task.id})
 		raise ProcessorError(msg, task_type=task.task_type, task_id=task.id) from e
 	finally:
-		if not settings.dev_mode:
+		if not settings.DEV_MODE:
 			shutil.rmtree(settings.processing_path, ignore_errors=True)
 
 
@@ -143,7 +143,7 @@ def background_process():
 
 	"""
 	# use the processor to log in
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 	user = verify_token(token)
 	if not user:
 		raise Exception(status_code=401, detail='Invalid token')

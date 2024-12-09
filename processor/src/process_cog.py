@@ -13,7 +13,7 @@ from .exceptions import AuthenticationError, DatasetError, ProcessingError, Stor
 
 def process_cog(task: QueueTask, temp_dir: Path):
 	# login with the processor
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 	user = verify_token(token)
 	if not user:
@@ -33,7 +33,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 	try:
 		# Setup paths
 		input_path = Path(temp_dir) / dataset.file_name
-		storage_server_file_path = f'{settings.storage_server_data_path}/archive/{dataset.file_name}'
+		storage_server_file_path = f'{settings.STORAGE_SERVER_DATA_PATH}/archive/{dataset.file_name}'
 
 		# Pull source file
 		pull_file_from_storage_server(storage_server_file_path, str(input_path), token)
@@ -59,7 +59,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 		logger.info(f'COG created for dataset {dataset.id}: {info}', extra={'token': token})
 
 		# Push generated COG
-		storage_server_cog_path = f'{settings.storage_server_data_path}/cogs/{cog_folder}/{file_name}'
+		storage_server_cog_path = f'{settings.STORAGE_SERVER_DATA_PATH}/cogs/{cog_folder}/{file_name}'
 		push_file_to_storage_server(str(output_path), storage_server_cog_path, token)
 		t2 = time.time()
 
@@ -87,7 +87,7 @@ def process_cog(task: QueueTask, temp_dir: Path):
 	# Save metadata to database
 	try:
 		# Refresh token before database operation
-		token = login(settings.processor_username, settings.processor_password)
+		token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 		user = verify_token(token)
 		if not user:
 			raise AuthenticationError('Token refresh failed', token=token, task_id=task.id)

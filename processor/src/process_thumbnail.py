@@ -12,7 +12,7 @@ from .exceptions import AuthenticationError, DatasetError, ProcessingError, Stor
 
 def process_thumbnail(task: QueueTask, temp_dir: Path):
 	# login with the processor
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 	user = verify_token(token)
 	if not user:
@@ -42,7 +42,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 		logger.info(f'Processing paths - temp_dir: {temp_dir}, input: {input_path}, output: {output_path}')
 
 		# get the remote file path and pull file
-		storage_server_file_path = f'{settings.storage_server_data_path}/archive/{file_name}'
+		storage_server_file_path = f'{settings.STORAGE_SERVER_DATA_PATH}/archive/{file_name}'
 		pull_file_from_storage_server(storage_server_file_path, str(input_path), token)
 
 		# Generate thumbnail
@@ -52,7 +52,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 		logger.info(f'Thumbnail generated for dataset {dataset.id}, stored in {output_path}', extra={'token': token})
 
 		# Push thumbnail to storage
-		storage_server_thumbnail_path = f'{settings.storage_server_data_path}/thumbnails/{thumbnail_file_name}'
+		storage_server_thumbnail_path = f'{settings.STORAGE_SERVER_DATA_PATH}/thumbnails/{thumbnail_file_name}'
 		push_file_to_storage_server(str(output_path), storage_server_thumbnail_path, token)
 		t2 = time.time()
 
@@ -71,7 +71,7 @@ def process_thumbnail(task: QueueTask, temp_dir: Path):
 	# Save thumbnail metadata to database
 	try:
 		# Refresh token before database operation
-		token = login(settings.processor_username, settings.processor_password)
+		token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 		user = verify_token(token)
 		if not user:
 			raise AuthenticationError('Token refresh failed', token=token, task_id=task.id)

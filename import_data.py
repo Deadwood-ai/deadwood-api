@@ -35,7 +35,7 @@ def chunked_upload(file_path: Path, token: str, user_id: str, chunk_size: int = 
 
 	# Configure progress bar
 	progress = tqdm(total=file_size, unit='B', unit_scale=True, desc=f'Uploading {file_path.name}')
-	logger.info(f'Uploading file: {file_path}, to endpoint: {settings.api_endpoint}')
+	logger.info(f'Uploading file: {file_path}, to endpoint: {settings.API_ENDPOINT}')
 
 	with open(file_path, 'rb') as f, httpx.Client(timeout=httpx.Timeout(timeout=300.0)) as client:  # 5 min timeout
 		for chunk_index in range(chunks_total):
@@ -52,7 +52,7 @@ def chunked_upload(file_path: Path, token: str, user_id: str, chunk_size: int = 
 
 			try:
 				response = client.post(
-					f'{settings.api_endpoint}/datasets/chunk',
+					f'{settings.API_ENDPOINT}/datasets/chunk',
 					files=files,
 					data=data,
 					headers={'Authorization': f'Bearer {token}'},
@@ -84,7 +84,7 @@ def chunked_upload(file_path: Path, token: str, user_id: str, chunk_size: int = 
 def update_metadata(dataset_id: str, metadata: MetadataPayloadData, token: str):
 	try:
 		res = requests.put(
-			f'{settings.api_endpoint}/datasets/{dataset_id}/metadata',
+			f'{settings.API_ENDPOINT}/datasets/{dataset_id}/metadata',
 			json=metadata.model_dump(),
 			headers={'Authorization': f'Bearer {token}'},
 		)
@@ -97,7 +97,7 @@ def update_metadata(dataset_id: str, metadata: MetadataPayloadData, token: str):
 def start_processing(dataset_id: str, token: str, task_type: str = 'all'):
 	try:
 		res = requests.put(
-			f'{settings.api_endpoint}/datasets/{dataset_id}/process',
+			f'{settings.API_ENDPOINT}/datasets/{dataset_id}/process',
 			params={'task_type': task_type},
 			headers={'Authorization': f'Bearer {token}'},
 		)
@@ -121,7 +121,7 @@ def import_data(
 	"""
 	Upload a single file to the storage server and update the metadata and process status.
 	"""
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 	# Verify token and get user
 	user = verify_token(token)

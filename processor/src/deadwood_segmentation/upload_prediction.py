@@ -7,9 +7,9 @@ from ..exceptions import AuthenticationError
 
 
 def upload_to_supabase(dataset_id, label, aoi, label_type, label_source, label_quality):
-	api_endpoint = settings.api_endpoint_datasets + str(dataset_id) + '/labels'
+	api_endpoint = settings.API_ENTPOINT_DATASETS + str(dataset_id) + '/labels'
 
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 	user = verify_token(token)
 	if not user:
 		raise AuthenticationError('Invalid token')

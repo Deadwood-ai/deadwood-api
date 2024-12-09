@@ -4,10 +4,10 @@ from shared.settings import settings
 
 
 def run(
-	host: str = settings.uvicorn_host,
-	port: int = settings.uvicorn_port,
-	root_path: str = settings.uvicorn_root_path,
-	proxy_headers: bool = settings.uvicorn_proxy_headers,
+	host: str = settings.UVICORN_HOST,
+	port: int = settings.UVICORN_PORT,
+	root_path: str = settings.UVICORN_ROOT_PATH,
+	proxy_headers: bool = settings.UVICORN_PROXY_HEADERS,
 	reload=False,
 ):
 	"""

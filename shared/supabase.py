@@ -28,8 +28,8 @@ def login(user: str, password: str) -> str:
 	global cached_session
 
 	client = create_client(
-		settings.supabase_url,
-		settings.supabase_key,
+		settings.SUPABASE_URL,
+		settings.SUPABASE_KEY,
 		options=ClientOptions(auto_refresh_token=False),
 	)
 
@@ -94,8 +94,8 @@ def use_client(access_token: Optional[str] = None) -> Generator[Client, None, No
 	"""
 	# create a supabase client
 	client = create_client(
-		settings.supabase_url,
-		settings.supabase_key,
+		settings.SUPABASE_URL,
+		settings.SUPABASE_KEY,
 		options=ClientOptions(auto_refresh_token=False),
 	)
 

@@ -32,7 +32,7 @@ def manual_upload(file_path: Path, token: str, user_id: Optional[str] = None) ->
 	# Push file to storage server using the existing mechanism
 	# logger.info(f'Pushing file to storage: {target_path}', extra={'token': token})
 	t1 = time.time()
-	remote_path = f'{settings.storage_server_data_path}/archive/{new_filename}'
+	remote_path = f'{settings.STORAGE_SERVER_DATA_PATH}/archive/{new_filename}'
 	print(f'Pushing file to storage: {remote_path}')
 	print(f'File path: {str(file_path)}')
 	print(f'File Name: {new_filename}')

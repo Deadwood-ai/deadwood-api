@@ -12,7 +12,7 @@ from .exceptions import AuthenticationError, DatasetError, ProcessingError
 
 def process_deadwood_segmentation(task: QueueTask, token: str, temp_dir: Path):
 	# login with the processor
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 	user = verify_token(token)
 	if not user:
@@ -32,7 +32,7 @@ def process_deadwood_segmentation(task: QueueTask, token: str, temp_dir: Path):
 	# get local file path
 	file_path = Path(temp_dir) / dataset.file_name
 	# get the remote file path
-	storage_server_file_path = f'{settings.storage_server_data_path}/archive/{dataset.file_name}'
+	storage_server_file_path = f'{settings.STORAGE_SERVER_DATA_PATH}/archive/{dataset.file_name}'
 	pull_file_from_storage_server(storage_server_file_path, str(file_path), token)
 
 	try:
@@ -47,5 +47,5 @@ def process_deadwood_segmentation(task: QueueTask, token: str, temp_dir: Path):
 		raise ProcessingError(str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=dataset.id)
 
 	logger.info(f'Deadwood segmentation completed for dataset {task.dataset_id}', extra={'token': token})
-	token = login(settings.processor_username, settings.processor_password)
+	token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 	update_status(token, dataset_id=dataset.id, status=StatusEnum.processed)

@@ -31,7 +31,7 @@ def test_file():
 @pytest.fixture(scope='session')
 def auth_token():
 	"""Provide authentication token for tests"""
-	return login(settings.processor_username, settings.processor_password)
+	return login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 
 @pytest.fixture(autouse=True)

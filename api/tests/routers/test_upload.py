@@ -38,7 +38,7 @@ def test_file():
 @pytest.fixture
 def auth_token():
 	"""Fixture to provide authentication token"""
-	return login(settings.processor_username, settings.processor_password)
+	return login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)
 
 
 @pytest.fixture
@@ -46,20 +46,20 @@ def temp_upload_dir():
 	"""Fixture to provide temporary directory for uploads"""
 	temp_dir = tempfile.mkdtemp()
 	# Update settings to use temp directory
-	original_base_dir = settings.base_dir
-	settings.base_dir = temp_dir
+	original_base_dir = settings.BASE_DIR
+	settings.BASE_DIR = temp_dir
 
 	yield temp_dir
 
 	# Cleanup
-	settings.base_dir = original_base_dir
+	settings.BASE_DIR = original_base_dir
 	shutil.rmtree(temp_dir)
 
 
 def test_upload_geotiff_chunk(test_file, auth_token, temp_upload_dir):
 	"""Test chunked upload of a GeoTIFF file"""
 	# Create necessary subdirectories
-	archive_dir = Path(temp_upload_dir) / settings.archive_dir
+	archive_dir = Path(temp_upload_dir) / settings.ARCHIVE_DIR
 	archive_dir.mkdir(parents=True, exist_ok=True)
 
 	# Setup
