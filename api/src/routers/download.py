@@ -95,8 +95,6 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
 	if metadata is None:
 		raise HTTPException(status_code=404, detail=f'Dataset <ID={dataset_id}> has no associated Metadata entry.')
 
-
-
 	# load the label
 	# TODO: this loads immer nur das erste Label!!!
 	label = Label.by_id(dataset_id)
@@ -132,7 +130,7 @@ async def download_geotiff(dataset_id: str):
 		raise HTTPException(status_code=404, detail=f'Dataset <ID={dataset_id}> not found.')
 
 	# here we can add the monitoring
-	monitoring.download_ortho.inc()
+	# monitoring.download_ortho.inc()
 
 	# build the file name
 	path = settings.archive_path / dataset.file_name

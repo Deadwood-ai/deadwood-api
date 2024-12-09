@@ -105,9 +105,9 @@ def process_cog(task: QueueTask, temp_dir: Path):
 		raise DatasetError(f'Failed to save COG metadata: {str(e)}', dataset_id=dataset.id, task_id=task.id)
 
 	# Update monitoring metrics
-	monitoring.cog_counter.inc()
-	monitoring.cog_time.observe(cog.runtime)
-	monitoring.cog_size.observe(cog.cog_size)
+	# monitoring.cog_counter.inc()
+	# monitoring.cog_time.observe(cog.runtime)
+	# monitoring.cog_size.observe(cog.cog_size)
 
 	logger.info(
 		f'Finished creating new COG for dataset {dataset.id}.',

@@ -31,7 +31,7 @@ def upsert_metadata(
 
 	"""
 	# count an invoke
-	monitoring.metadata_invoked.inc()
+	# monitoring.metadata_invoked.inc()
 
 	# first thing we do is verify the token
 	user = verify_token(token)
@@ -105,6 +105,6 @@ def upsert_metadata(
 			status_code=400, detail=f'Error updating admin level information for dataset {dataset_id}: {str(e)}'
 		)
 	metadata = Metadata(**response.data[0])
-	monitoring.metadata_counter.inc()
+	# monitoring.metadata_counter.inc()
 
 	return metadata
