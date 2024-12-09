@@ -23,18 +23,10 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - BASE_DIR=/data
-      # - DEV_MODE=true
-      # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
-      # - DATASETS_TABLE=${DATASETS_TABLE}
-      # - METADATA_TABLE=${METADATA_TABLE}
-      # - COGS_TABLE=${COGS_TABLE}
-      # - LABELS_TABLE=${LABELS_TABLE}
-      # - QUEUE_TABLE=${QUEUE_TABLE}
-      # - QUEUE_POSITION_TABLE=${QUEUE_POSITION_TABLE}
-      # - LOGS_TABLE=${LOGS_TABLE}
       - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
       - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
       - DEV_MODE=${DEV_MODE}
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
     # command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
     command: pytest processor/tests -v --cov=processor/src --cov-report=term-missing
 
@@ -49,6 +41,7 @@ services:
       - ./shared:/app/shared
       - ./api/tests/test_data:/app/test_data
       - ./data:/data
+      - ${GADM_DATA_PATH}:/app/gadm_data/gadm_410.gpkg
     environment:
       - PYTHONPATH=/app
       - PYTEST_ADDOPTS=--color=yes
@@ -61,15 +54,8 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - BASE_DIR=/data
-      #- DEV_MODE=true
-      # - THUMBNAIL_TABLE=${THUMBNAIL_TABLE}
-      # - DATASETS_TABLE=${DATASETS_TABLE}
-      # - METADATA_TABLE=${METADATA_TABLE}
-      # - COGS_TABLE=${COGS_TABLE}
-      # - LABELS_TABLE=${LABELS_TABLE}
-      # - QUEUE_TABLE=${QUEUE_TABLE}
-      # - QUEUE_POSITION_TABLE=${QUEUE_POSITION_TABLE}
-      # - LOGS_TABLE=${LOGS_TABLE}
       - DEV_MODE=${DEV_MODE}
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
+      - GADM_DATA_PATH=/app/gadm_data/gadm_410.gpkg
     command: pytest api/tests -v --cov=api/src --cov-report=term-missing
     # command: python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m pytest

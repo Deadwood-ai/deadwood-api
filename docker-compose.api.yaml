@@ -8,6 +8,8 @@ services:
     volumes:
       - ./data:/data
       - ./src:/app/src
+      - ${GADM_DATA_PATH}:/gadm_data/gadm_410.gpkg
+
     environment:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
@@ -16,15 +18,7 @@ services:
       STORAGE_SERVER_USERNAME: ${STORAGE_SERVER_USERNAME}
       STORAGE_SERVER_DATA_PATH: ${STORAGE_SERVER_DATA_PATH}
       DEV_MODE: ${DEV_MODE}
-      # THUMBNAIL_TABLE: ${THUMBNAIL_TABLE}
-      # DATASETS_TABLE: ${DATASETS_TABLE}
-      # METADATA_TABLE: ${METADATA_TABLE}
-      # COGS_TABLE: ${COGS_TABLE}
-      # LABELS_TABLE: ${LABELS_TABLE}
-      # LABEL_OBJECTS_TABLE: ${LABEL_OBJECTS_TABLE}
-      # QUEUE_TABLE: ${QUEUE_TABLE}
-      # QUEUE_POSITION_TABLE: ${QUEUE_POSITION_TABLE}
-      # LOGS_TABLE: ${LOGS_TABLE}
+      GADM_DATA_PATH: /gadm_data/gadm_410.gpkg
       PROCESSOR_USERNAME: processor@deadtrees.earth
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       UVICORN_PORT: 8762

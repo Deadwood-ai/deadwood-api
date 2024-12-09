@@ -10,15 +10,6 @@ from unittest.mock import patch
 DATASET_ID = 275
 
 
-@pytest.fixture(scope='session')
-def gadm_path():
-	"""Ensure GADM data is available for tests"""
-	path = Path('/gadm/gadm_410.gpkg')
-	if not path.exists():
-		pytest.skip('GADM data not available')
-	return path
-
-
 @pytest.fixture
 def test_file():
 	"""Fixture to provide test GeoTIFF file path"""

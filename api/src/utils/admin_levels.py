@@ -9,7 +9,10 @@ from shared.models import Dataset
 from fastapi import HTTPException
 
 # Define the path to the GADM database
-GADM_PATH = Path('api/gadm') / 'gadm_410.gpkg'
+GADM_PATH = Path(settings.GADM_DATA_PATH)
+# raise error if the file does not exist
+if not GADM_PATH.exists():
+	raise FileNotFoundError(f'GADM data file not found at {GADM_PATH}')
 
 
 def get_admin_tags(point: Tuple[float, float]) -> List[Optional[str]]:

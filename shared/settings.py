@@ -40,8 +40,7 @@ BASE = Path(__file__).parent.parent / 'data'
 class Settings(BaseSettings):
 	# base directory for the storage app
 	BASE_DIR: str = str(BASE)
-	GADM_DATA_PATH: str = '/gadm/gadm_410.gpkg'
-
+	GADM_DATA_PATH: str = ''
 	DEV_MODE: bool = False
 
 	# directly specify the locations for several files

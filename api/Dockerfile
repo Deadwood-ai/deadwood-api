@@ -19,9 +19,10 @@ WORKDIR /app
 COPY ./shared /app/shared
 COPY ./api/src /app/api/src
 COPY ./run.py /app/run.py
-COPY ./api/gadm /app/api/gadm
 
-
+# Create mount points with appropriate permissions
+RUN mkdir -p /gadm_data && \
+    chmod 755 /gadm_data
 
 # set the working directory
 WORKDIR /app
