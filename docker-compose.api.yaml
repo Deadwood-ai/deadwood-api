@@ -2,38 +2,33 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: api/Dockerfile
     ports:
       - 8762:8762
     volumes:
       - ./data:/data
       - ./src:/app/src
+      - ${GADM_DATA_PATH}:/gadm_data/gadm_410.gpkg
+
     environment:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
       STORAGE_SERVER_IP: ${STORAGE_SERVER_IP}
       STORAGE_SERVER_USERNAME: ${STORAGE_SERVER_USERNAME}
-      STORAGE_SERVER_PASSWORD: ${STORAGE_SERVER_PASSWORD}
       STORAGE_SERVER_DATA_PATH: ${STORAGE_SERVER_DATA_PATH}
-      THUMBNAIL_TABLE: ${THUMBNAIL_TABLE}
-      DATASETS_TABLE: ${DATASETS_TABLE}
-      METADATA_TABLE: ${METADATA_TABLE}
-      COGS_TABLE: ${COGS_TABLE}
-      LABELS_TABLE: ${LABELS_TABLE}
-      LABEL_OBJECTS_TABLE: ${LABEL_OBJECTS_TABLE}
-      QUEUE_TABLE: ${QUEUE_TABLE}
-      QUEUE_POSITION_TABLE: ${QUEUE_POSITION_TABLE}
-      LOGS_TABLE: ${LOGS_TABLE}
+      DEV_MODE: ${DEV_MODE}
+      GADM_DATA_PATH: /gadm_data/gadm_410.gpkg
       PROCESSOR_USERNAME: processor@deadtrees.earth
       PROCESSOR_PASSWORD: ${PROCESSOR_PASSWORD}
       UVICORN_PORT: 8762
       UVICORN_HOST: 0.0.0.0
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}
 
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: api/Dockerfile
     volumes:
       - ./data:/data
       - ./src:/app/src
