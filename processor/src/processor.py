@@ -158,7 +158,7 @@ def background_process():
 		return
 
 	# check if we can start another task
-	if num_of_running < settings.concurrent_tasks:
+	if num_of_running < settings.CONCURRENT_TASKS:
 		# get the next task
 		task = get_next_task(token)
 		is_uploaded = is_dataset_uploaded_or_processed(task, token)

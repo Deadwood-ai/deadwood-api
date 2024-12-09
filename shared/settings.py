@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 	BASE_DIR: str = str(BASE)
 	GADM_DATA_PATH: str = ''
 	DEV_MODE: bool = False
+	CONCURRENT_TASKS: int = 2
 
 	# directly specify the locations for several files
 	ARCHIVE_DIR: str = 'archive'
