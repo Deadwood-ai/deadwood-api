@@ -9,15 +9,15 @@ services:
       resources:
         limits:
           cpus: '6'
-        # reservations:
-        # devices:
-        #   - driver: nvidia
-        #     count: 'all'
-        #     capabilities: [gpu]
-    # runtime: nvidia
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    runtime: nvidia
     volumes:
       - ./data:/data
-      - /Users/januschvajna-jehle/.ssh/id_rsa:/app/ssh_key
+      - ${SSH_PRIVATE_KEY_PATH}:/app/ssh_key
     environment:
       BASE_DIR: /data
       SUPABASE_URL: ${SUPABASE_URL}
