@@ -12,7 +12,7 @@ services:
       - ./shared:/app/shared
       - ./processor/tests/test_data:/app/test_data
       - ./data:/data
-      - /Users/januschvajna-jehle/.ssh/id_rsa:/app/ssh_key
+      - ${SSH_PRIVATE_KEY_PATH}:/app/ssh_key
     environment:
       - PYTHONPATH=/app
       - PYTEST_ADDOPTS=--color=yes
