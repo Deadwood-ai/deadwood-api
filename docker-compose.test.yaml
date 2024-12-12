@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  processor-test:
+    build:
+      context: .
+      dockerfile: processor/Dockerfile
+    ports:
+      - '5678:5678'
+    volumes:
+      - ./processor:/app/processor
+      - ./shared:/app/shared
+      - ./processor/tests/test_data:/app/test_data
+      - ./data:/data
+      - ${SSH_PRIVATE_KEY_PATH}:/app/ssh_key
+    environment:
+      - PYTHONPATH=/app
+      - PYTEST_ADDOPTS=--color=yes
+      - STORAGE_SERVER_IP=${STORAGE_SERVER_IP}
+      - STORAGE_SERVER_USERNAME=${STORAGE_SERVER_USERNAME}
+      - STORAGE_SERVER_DATA_PATH=${STORAGE_SERVER_DATA_PATH}
+      - PROCESSOR_USERNAME=processor@deadtrees.earth
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - BASE_DIR=/data
+      - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
+      - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
+      - DEV_MODE=${DEV_MODE}
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
+    # command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
+    command: pytest processor/tests -v --cov=processor/src --cov-report=term-missing
+
+  api-test:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - '5679:5679'
+    volumes:
+      - ./api:/app/api
+      - ./shared:/app/shared
+      - ./api/tests/test_data:/app/test_data
+      - ./data:/data
+      - ${GADM_DATA_PATH}:/app/gadm_data/gadm_410.gpkg
+    environment:
+      - PYTHONPATH=/app
+      - PYTEST_ADDOPTS=--color=yes
+      - STORAGE_SERVER_IP=${STORAGE_SERVER_IP}
+      - STORAGE_SERVER_USERNAME=${STORAGE_SERVER_USERNAME}
+      - STORAGE_SERVER_DATA_PATH=${STORAGE_SERVER_DATA_PATH}
+      - PROCESSOR_USERNAME=processor@deadtrees.earth
+      - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
+      - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - BASE_DIR=/data
+      - DEV_MODE=${DEV_MODE}
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
+      - GADM_DATA_PATH=/app/gadm_data/gadm_410.gpkg
+    command: pytest api/tests -v --cov=api/src --cov-report=term-missing
+    # command: python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m pytest

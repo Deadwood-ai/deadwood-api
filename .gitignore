@@ -1,5 +1,10 @@
 # testdata
 test_data/*
+api/gadm/*
+api/tests/test_data/*
+processor/src/deadwood_segmentation/models/*
+
+processor/tests/test_data/*
 
 .cursorrules
 # Byte-compiled / optimized / DLL files
