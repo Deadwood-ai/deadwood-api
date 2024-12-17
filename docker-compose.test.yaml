@@ -25,7 +25,7 @@ services:
       - BASE_DIR=/data
       - PROCESSOR_PASSWORD=${PROCESSOR_PASSWORD}
       - SSH_PRIVATE_KEY_PASSPHRASE=${SSH_PRIVATE_KEY_PASSPHRASE}
-      - DEV_MODE=${DEV_MODE}
+      - DEV_MODE=true
       - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
     # command: python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest
     command: pytest processor/tests -v --cov=processor/src --cov-report=term-missing
@@ -54,7 +54,7 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - BASE_DIR=/data
-      - DEV_MODE=${DEV_MODE}
+      - DEV_MODE=true
       - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
       - GADM_DATA_PATH=/app/gadm_data/gadm_410.gpkg
     command: pytest api/tests -v --cov=api/src --cov-report=term-missing
