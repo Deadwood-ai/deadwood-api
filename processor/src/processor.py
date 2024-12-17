@@ -97,13 +97,13 @@ def process_task(task: QueueTask, token: str):
 				process_thumbnail(task, settings.processing_path)
 			except Exception as e:
 				raise ProcessingError(str(e), task_type='thumbnail', task_id=task.id, dataset_id=task.dataset_id)
-		if task.task_type in ['deadwood_segmentation', 'all']:
-			try:
-				process_deadwood_segmentation(task, token, settings.processing_path)
-			except Exception as e:
-				raise ProcessingError(
-					str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=task.dataset_id
-				)
+		# if task.task_type in ['deadwood_segmentation', 'all']:
+		# 	try:
+		# 		process_deadwood_segmentation(task, token, settings.processing_path)
+		# 	except Exception as e:
+		# 		raise ProcessingError(
+		# 			str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=task.dataset_id
+		# 		)
 
 		# Delete task after successful processing
 		try:
