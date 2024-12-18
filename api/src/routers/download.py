@@ -114,7 +114,7 @@ async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
 		background_tasks.add_task(lambda: Path(target.name).unlink())
 
 	# now stream the file to the user
-	return FileResponse(target.name, media_type='application/zip', filename=f'{Path(metadata.name).stem}.zip')
+	return FileResponse(target.name, media_type='application/zip', filename=f'{dataset_id}.zip')
 
 
 @download_app.get('/datasets/{dataset_id}/ortho.tif')
