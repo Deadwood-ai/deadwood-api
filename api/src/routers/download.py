@@ -74,7 +74,6 @@ def info():
 
 
 # main download route
-@download_app.get('/datasets/{dataset_id}')
 @download_app.get('/datasets/{dataset_id}/dataset.zip')
 async def download_dataset(dataset_id: str, background_tasks: BackgroundTasks):
 	"""

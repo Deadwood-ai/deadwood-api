@@ -26,18 +26,10 @@ def auth_token():
 
 
 @pytest.fixture(autouse=True)
-def mock_data_directory(auth_token, test_file):
+def mock_data_directory(test_file):
 	"""Replace /data with a temporary directory during tests"""
 	with tempfile.TemporaryDirectory() as temp_dir:
 		temp_path = Path(temp_dir)
-
-		with use_client(auth_token) as client:
-			response = client.table(settings.datasets_table).select('file_name').eq('id', DATASET_ID).execute()
-			file_name = response.data[0]['file_name']
-			if not response.data:
-				pytest.skip('Dataset not found in database')
-
-			shutil.copy2(test_file, temp_path / file_name)
 
 		# Create a mock property that returns our temp path
 		def get_base_path(self):
@@ -49,4 +41,4 @@ def mock_data_directory(auth_token, test_file):
 		# Patch both properties
 		with patch('shared.settings.Settings.base_path', new_callable=property, fget=get_base_path):
 			with patch('shared.settings.Settings.archive_path', new_callable=property, fget=get_archive_path):
-				yield temp_dir
+				yield temp_path  # Return the temp_path instead of temp_dir

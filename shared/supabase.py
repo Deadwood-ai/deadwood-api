@@ -121,11 +121,11 @@ class SupabaseReader(BaseModel):
 		"""Reads an instance from the bound model from
 		supabase.
 		"""
-		# figure out the primary filed
-		if 'id' in self.Model.model_fields:
-			id_field = 'id'
-		elif 'dataset_id' in self.Model.model_fields:
+		# figure out the primary field - prioritize dataset_id over id
+		if 'dataset_id' in self.Model.model_fields:
 			id_field = 'dataset_id'
+		elif 'id' in self.Model.model_fields:
+			id_field = 'id'
 		else:
 			raise AttributeError('Model does not have an id field')
 

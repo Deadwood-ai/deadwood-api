@@ -82,7 +82,7 @@ def bundle_dataset(
 		file_name = Path(metadata.name).stem
 
 	# create the zip archive
-	with zipfile.ZipFile(target_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+	with zipfile.ZipFile(target_path, 'w', zipfile.ZIP_STORED) as archive:
 		# add the main file to the archive
 		archive.write(archive_file_path, arcname=f'{file_name}.tif')
 
@@ -95,7 +95,7 @@ def bundle_dataset(
 		with tempfile.NamedTemporaryFile(suffix='.gpkg') as label_file:
 			label_to_geopackage(label_file.name, label)
 
-			with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+			with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_STORED) as archive:
 				archive.write(label_file.name, arcname='labels.gpkg')
 
 	# finally check if some of the extra-files can be provided
