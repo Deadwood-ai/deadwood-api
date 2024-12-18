@@ -29,3 +29,4 @@ httpx
 pytest-mock
 pyyaml
 logfire[fastapi,system-metrics]
+pyarrow

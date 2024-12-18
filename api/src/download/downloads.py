@@ -6,6 +6,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import yaml
+import pandas as pd
 
 from shared.models import Metadata, Label
 
@@ -70,6 +71,30 @@ def create_citation_file(metadata: Metadata, filestream=None) -> str:
 	return filestream
 
 
+def get_formatted_filename(metadata: Metadata, dataset_id: int, label_id: int = None) -> str:
+	"""Generate formatted filename with admin levels and date"""
+	# Get admin levels (default to 'unknown' if not set)
+	admin1 = metadata.admin_level_1 or 'unknown'
+	admin3 = metadata.admin_level_3 or 'unknown'
+
+	# Clean admin names (remove spaces and special chars)
+	admin1 = ''.join(c for c in admin1 if c.isalnum())
+	admin3 = ''.join(c for c in admin3 if c.isalnum())
+
+	# Format date string
+	date_str = f'{metadata.aquisition_year}'
+	if metadata.aquisition_month:
+		date_str += f'{metadata.aquisition_month:02d}'
+	if metadata.aquisition_day:
+		date_str += f'{metadata.aquisition_day:02d}'
+
+	# Build base filename
+	if label_id:
+		return f'labels_{dataset_id}_{admin1}_{admin3}_{label_id}'
+	else:
+		return f'ortho_{dataset_id}_{admin1}_{admin3}_{date_str}'
+
+
 def bundle_dataset(
 	target_path: str,
 	archive_file_path: str,
@@ -77,28 +102,40 @@ def bundle_dataset(
 	file_name: str | None = None,
 	label: Label | None = None,
 ):
-	# build the file name
-	if file_name is None:
-		file_name = Path(metadata.name).stem
+	# Generate formatted filenames
+	base_filename = get_formatted_filename(metadata, metadata.dataset_id)
 
 	# create the zip archive
 	with zipfile.ZipFile(target_path, 'w', zipfile.ZIP_STORED) as archive:
-		# add the main file to the archive
-		archive.write(archive_file_path, arcname=f'{file_name}.tif')
+		# add the main file to the archive with new name
+		archive.write(archive_file_path, arcname=f'{base_filename}.tif')
 
-		# add the metadata to the archive
-		archive.writestr(f'{file_name}.json', metadata.model_dump_json())
-		archive.writestr(f'{file_name}.schema.json', json.dumps(metadata.model_json_schema(), indent=4))
+		# Convert metadata to DataFrame
+		df = pd.DataFrame([metadata.model_dump()])
 
-	# write the labels into a geopackage
+		# Create temporary files for metadata formats
+		with tempfile.NamedTemporaryFile(suffix='.csv') as csv_file, tempfile.NamedTemporaryFile(
+			suffix='.parquet'
+		) as parquet_file:
+			# Save metadata in both formats
+			df.to_csv(csv_file.name, index=False)
+			df.to_parquet(parquet_file.name, index=False)
+
+			# Add both files to archive
+			archive.write(csv_file.name, arcname='METADATA.csv')
+			archive.write(parquet_file.name, arcname='METADATA.parquet')
+
+	# write the labels into a geopackage if present
 	if label is not None:
+		label_filename = get_formatted_filename(metadata, metadata.dataset_id, label.id)
+
 		with tempfile.NamedTemporaryFile(suffix='.gpkg') as label_file:
 			label_to_geopackage(label_file.name, label)
 
 			with zipfile.ZipFile(target_path, 'a', zipfile.ZIP_STORED) as archive:
-				archive.write(label_file.name, arcname='labels.gpkg')
+				archive.write(label_file.name, arcname=f'{label_filename}.gpkg')
 
-	# finally check if some of the extra-files can be provided
+	# Add license if available
 	if metadata.license is not None:
 		license_file = TEMPLATE_PATH / f'{metadata.license.value.replace(" ", "-")}.txt'
 		if license_file.exists():

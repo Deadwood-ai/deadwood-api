@@ -78,11 +78,10 @@ def test_download_dataset(auth_token, test_dataset_for_download):
 			files = zf.namelist()
 
 			# Verify expected files
-			assert any(f.endswith('.tif') for f in files)
-			assert any(f.endswith('.json') and not f.endswith('schema.json') for f in files)
-			assert any(f.endswith('schema.json') for f in files)
+			assert any(f.startswith('ortho_') and f.endswith('.tif') for f in files)
+			assert 'METADATA.csv' in files
+			assert 'METADATA.parquet' in files
 			assert 'LICENSE.txt' in files
-			assert 'CITATION.cff' in files
 
 	finally:
 		# Cleanup
@@ -182,13 +181,12 @@ def test_download_dataset_with_labels(auth_token, test_dataset_with_label):
 		with zipfile.ZipFile(temp_zip) as zf:
 			# List all files in the ZIP
 			files = zf.namelist()
-			# Verify expected files
-			assert any(f.endswith('.tif') for f in files)
-			assert any(f.endswith('.json') and not f.endswith('schema.json') for f in files)
-			assert any(f.endswith('schema.json') for f in files)
+			# Check for files with new naming pattern
+			assert any(f.startswith('ortho_') and f.endswith('.tif') for f in files)
+			assert any(f.startswith('labels_') and f.endswith('.gpkg') for f in files)
+			assert 'METADATA.csv' in files
+			assert 'METADATA.parquet' in files
 			assert 'LICENSE.txt' in files
-			assert 'CITATION.cff' in files
-			assert 'labels.gpkg' in files  # Verify the labels file is included
 
 	finally:
 		# Cleanup

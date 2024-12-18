@@ -22,3 +22,4 @@ pytest-cov
 debugpy
 fastapi[testclient]
 logfire[fastapi,system-metrics]
+pyarrow
