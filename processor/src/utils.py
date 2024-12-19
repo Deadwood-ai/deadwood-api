@@ -55,50 +55,50 @@ def push_file_to_storage_server(local_file_path: str, remote_file_path: str, tok
 
 	with paramiko.SSHClient() as ssh:
 		ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+		pkey = paramiko.RSAKey.from_private_key_file(
+			settings.SSH_PRIVATE_KEY_PATH, password=settings.SSH_PRIVATE_KEY_PASSPHRASE
+		)
 		logger.info(
 			f'Connecting to storage server: {settings.STORAGE_SERVER_IP} as {settings.STORAGE_SERVER_USERNAME}',
 			extra={'token': token},
-		)
-		pkey = paramiko.RSAKey.from_private_key_file(
-			settings.SSH_PRIVATE_KEY_PATH, password=settings.SSH_PRIVATE_KEY_PASSPHRASE
 		)
 		ssh.connect(
 			hostname=settings.STORAGE_SERVER_IP,
 			username=settings.STORAGE_SERVER_USERNAME,
 			pkey=pkey,
-			port=22,  # Add this line to specify the default SSH port
+			port=22,
 		)
+
 		with ssh.open_sftp() as sftp:
-			logger.info(
-				f'Pushing file to storage server: {local_file_path} to {remote_file_path}', extra={'token': token}
-			)
+			# remote_dir = os.path.dirname(remote_file_path)
+			temp_remote_path = f'{remote_file_path}.tmp'
 
-			# Extract the remote directory path
-			remote_dir = os.path.dirname(remote_file_path)
+			# try:
+			# 	# Create directory if it doesn't exist (creates all parent directories)
+			# 	sftp.mkdir(remote_dir, mode=0o755)
+			# 	logger.info(f'Created directory {remote_dir}', extra={'token': token})
+			# except IOError:
+			# 	# Directory already exists, continue
+			# 	pass
 
 			try:
-				sftp.stat(remote_file_path)
-				logger.warning(
-					f'File {remote_file_path} already exists and will be overwritten', extra={'token': token}
-				)
-			except IOError:
-				logger.info(f'No existing file found at {remote_file_path}', extra={'token': token})
+				# Upload to temporary location first
+				logger.info(f'Uploading file to temporary location: {temp_remote_path}', extra={'token': token})
+				sftp.put(local_file_path, temp_remote_path)
 
-			# Ensure the remote directory exists
-			try:
-				sftp.stat(remote_dir)
-			except IOError:
-				try:
-					sftp.mkdir(remote_dir)
-					logger.info(f'Created directory {remote_dir}', extra={'token': token})
-				except IOError as e:
-					logger.warning(f'Error creating directory {remote_dir}: {e}', extra={'token': token})
-
-			# Push the file
-			try:
-				sftp.put(local_file_path, remote_file_path)
+				# Atomic rename from temp to final location
+				logger.info(f'Moving file to final location: {remote_file_path}', extra={'token': token})
+				sftp.posix_rename(temp_remote_path, remote_file_path)
 				logger.info(f'File successfully pushed to: {remote_file_path}', extra={'token': token})
-			except IOError as e:
+
+			except Exception as e:
+				# Clean up temp file if it exists
+				try:
+					sftp.remove(temp_remote_path)
+					logger.info('Cleaned up temporary file after failure', extra={'token': token})
+				except IOError:
+					pass
+
 				logger.error(f'Failed to push file to {remote_file_path}: {str(e)}', extra={'token': token})
 				raise
 
