@@ -69,69 +69,67 @@ def is_dataset_uploaded_or_processed(task: QueueTask, token: str) -> bool:
 
 
 def process_task(task: QueueTask, token: str):
+	# try:
+	# Verify token
+	user = verify_token(token)
+	if not user:
+		raise AuthenticationError('Invalid token', token=token, task_id=task.id)
+
+	# Load dataset
+	# try:
+	# 	with use_client(token) as client:
+	# 		response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
+	# 		dataset = Dataset(**response.data[0])
+	# except Exception as e:
+	# 	raise DatasetError(f'Failed to fetch dataset: {str(e)}', dataset_id=task.dataset_id, task_id=task.id)
+
+	# Process based on task type
+	if task.task_type in ['cog', 'all']:
+		try:
+			logger.info(f'processing cog to {settings.processing_path}')
+			process_cog(task, settings.processing_path)
+		except Exception as e:
+			raise ProcessingError(str(e), task_type='cog', task_id=task.id, dataset_id=task.dataset_id)
+
+	if task.task_type in ['thumbnail', 'all']:
+		try:
+			logger.info(f'processing thumbnail to {settings.processing_path}')
+			process_thumbnail(task, settings.processing_path)
+		except Exception as e:
+			raise ProcessingError(str(e), task_type='thumbnail', task_id=task.id, dataset_id=task.dataset_id)
+	# if task.task_type in ['deadwood_segmentation', 'all']:
+	# 	try:
+	# 		process_deadwood_segmentation(task, token, settings.processing_path)
+	# 	except Exception as e:
+	# 		raise ProcessingError(
+	# 			str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=task.dataset_id
+	# 		)
+
+	# Delete task after successful processing
 	try:
-		# Verify token
-		user = verify_token(token)
-		if not user:
-			raise AuthenticationError('Invalid token', token=token, task_id=task.id)
-
-		# Load dataset
-		try:
-			with use_client(token) as client:
-				response = client.table(settings.datasets_table).select('*').eq('id', task.dataset_id).execute()
-				dataset = Dataset(**response.data[0])
-		except Exception as e:
-			raise DatasetError(f'Failed to fetch dataset: {str(e)}', dataset_id=task.dataset_id, task_id=task.id)
-
-		# Process based on task type
-		if task.task_type in ['cog', 'all']:
-			try:
-				logger.info(f'processing cog to {settings.processing_path}')
-				process_cog(task, settings.processing_path)
-			except Exception as e:
-				raise ProcessingError(str(e), task_type='cog', task_id=task.id, dataset_id=task.dataset_id)
-
-		if task.task_type in ['thumbnail', 'all']:
-			try:
-				logger.info(f'processing thumbnail to {settings.processing_path}')
-				process_thumbnail(task, settings.processing_path)
-			except Exception as e:
-				raise ProcessingError(str(e), task_type='thumbnail', task_id=task.id, dataset_id=task.dataset_id)
-		# if task.task_type in ['deadwood_segmentation', 'all']:
-		# 	try:
-		# 		process_deadwood_segmentation(task, token, settings.processing_path)
-		# 	except Exception as e:
-		# 		raise ProcessingError(
-		# 			str(e), task_type='deadwood_segmentation', task_id=task.id, dataset_id=task.dataset_id
-		# 		)
-
-		# Delete task after successful processing
-		try:
-			with use_client(token) as client:
-				client.table(settings.queue_table).delete().eq('id', task.id).execute()
-		except Exception as e:
-			raise ProcessorError(
-				f'Failed to delete completed task: {str(e)}', task_type=task.task_type, task_id=task.id
-			)
-
-	except (AuthenticationError, DatasetError, ProcessingError, StorageError) as e:
-		logger.error(
-			str(e),
-			extra={
-				'token': token,
-				'task_id': getattr(e, 'task_id', None),
-				'dataset_id': getattr(e, 'dataset_id', None),
-				'error_type': e.__class__.__name__,
-			},
-		)
-		raise
+		with use_client(token) as client:
+			client.table(settings.queue_table).delete().eq('id', task.id).execute()
 	except Exception as e:
-		msg = f'Unexpected error: {str(e)}'
-		logger.error(msg, extra={'token': token, 'task_id': task.id})
-		raise ProcessorError(msg, task_type=task.task_type, task_id=task.id) from e
-	finally:
-		if not settings.DEV_MODE:
-			shutil.rmtree(settings.processing_path, ignore_errors=True)
+		raise ProcessorError(f'Failed to delete completed task: {str(e)}', task_type=task.task_type, task_id=task.id)
+
+	# except (AuthenticationError, DatasetError, ProcessingError, StorageError) as e:
+	# 	logger.error(
+	# 		str(e),
+	# 		extra={
+	# 'token': token,
+	# 'task_id': getattr(e, 'task_id', None),
+	# 'dataset_id': getattr(e, 'dataset_id', None),
+	# 'error_type': e.__class__.__name__,
+	# 		},
+	# 	)
+	# 	raise
+	# except Exception as e:
+	# 	msg = f'Unexpected error: {str(e)}'
+	# 	logger.error(msg, extra={'token': token, 'task_id': task.id})
+	# 	raise ProcessorError(msg, task_type=task.task_type, task_id=task.id) from e
+	# finally:
+	if not settings.DEV_MODE:
+		shutil.rmtree(settings.processing_path, ignore_errors=True)
 
 
 def background_process():
