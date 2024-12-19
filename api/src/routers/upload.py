@@ -16,8 +16,8 @@ from ..upload.upload import (
 	create_initial_dataset_entry,
 	get_transformed_bounds,
 	get_file_identifier,
-	create_geotiff_info_entry,
 )
+from shared.geotiff import create_geotiff_info_entry
 
 router = APIRouter()
 

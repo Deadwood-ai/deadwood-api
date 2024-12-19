@@ -21,6 +21,10 @@ def create_geotiff_info_entry(file_path: Path, dataset_id: int, token: str) -> G
 	"""
 	try:
 		with rasterio.open(str(file_path)) as src:
+			# Determine if the file is tiled by checking block shapes
+			block_shapes = src.block_shapes[0]
+			is_tiled = block_shapes[0] == block_shapes[1] and block_shapes[0] > 1
+
 			# Basic file info
 			info = GeoTiffInfo(
 				dataset_id=dataset_id,
@@ -35,13 +39,13 @@ def create_geotiff_info_entry(file_path: Path, dataset_id: int, token: str) -> G
 				# Pixel and tiling info
 				pixel_size_x=abs(src.transform.a),
 				pixel_size_y=abs(src.transform.e),
-				block_size_x=src.block_shapes[0][0],
-				block_size_y=src.block_shapes[0][1],
-				is_tiled=src.is_tiled,
+				block_size_x=block_shapes[0],
+				block_size_y=block_shapes[1],
+				is_tiled=is_tiled,
 				# Compression infos
 				compression=src.compression.value if src.compression else None,
 				interleave=src.interleaving.value if src.interleaving else None,
-				is_bigtiff=src.is_tiled and file_path.stat().st_size > 4 * 1024 * 1024 * 1024,
+				is_bigtiff=is_tiled and file_path.stat().st_size > 4 * 1024 * 1024 * 1024,
 				# Band information
 				band_count=src.count,
 				band_types=[src.dtypes[i] for i in range(src.count)],
