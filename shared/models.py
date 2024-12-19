@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 from enum import Enum
 from datetime import datetime
 
@@ -317,3 +317,57 @@ class Label(LabelPayloadData):
 		reader = SupabaseReader(Model=cls, table=settings.labels_table, token=token)
 
 		return reader.by_id(dataset_id)
+
+
+class GeoTiffInfo(BaseModel):
+	"""
+	Model for storing detailed GeoTIFF metadata for debugging and context.
+	This information is extracted using GDAL and stored separately from the main dataset.
+	"""
+
+	# Primary key linking to dataset
+	dataset_id: int
+
+	# Basic file info
+	driver: str  # e.g., "GTiff/GeoTIFF"
+	size_width: int
+	size_height: int
+	file_size_gb: float
+
+	# CRS and projection info
+	crs: str  # Full CRS string
+	crs_code: Optional[str]  # e.g., "EPSG:4326"
+	geodetic_datum: Optional[str]  # e.g., "WGS 84"
+
+	# Pixel and tiling info
+	pixel_size_x: float
+	pixel_size_y: float
+	block_size_x: int
+	block_size_y: int
+	is_tiled: bool
+
+	# Compression and format info
+	compression: Optional[str]  # e.g., "DEFLATE"
+	interleave: Optional[str]  # e.g., "PIXEL"
+	is_bigtiff: bool
+
+	# Band information
+	band_count: int
+	band_types: List[str]  # e.g., ["Byte", "Byte", "Byte"]
+	band_interpretations: List[str]  # e.g., ["Red", "Green", "Blue"]
+	band_nodata_values: List[Optional[float]]
+
+	# Bounds information
+	origin_x: float
+	origin_y: float
+
+	# Additional metadata
+	extra_metadata: Optional[Dict[str, str]]  # For any additional metadata tags
+
+	created_at: Optional[datetime] = None
+
+	@field_serializer('created_at', mode='plain')
+	def datetime_to_isoformat(field: datetime | None) -> str | None:
+		if field is None:
+			return None
+		return field.isoformat()

@@ -107,9 +107,32 @@ def test_upload_geotiff_chunk(test_file, auth_token, temp_upload_dir):
 				assert isinstance(dataset['file_name'], str)
 				assert '/' not in dataset['file_name']
 
-				# Cleanup: Remove the dataset from the database if it was created
+				# Check if GeoTIFF info was created
+				with use_client(auth_token) as supabase_client:
+					response = (
+						supabase_client.table(settings.geotiff_info_table)
+						.select('*')
+						.eq('dataset_id', dataset_id)
+						.execute()
+					)
+					assert len(response.data) == 1
+					geotiff_info = response.data[0]
+
+					# Verify essential GeoTIFF info fields
+					assert geotiff_info['dataset_id'] == dataset_id
+					assert geotiff_info['driver'] == 'GTiff'
+					assert geotiff_info['size_width'] > 0
+					assert geotiff_info['size_height'] > 0
+					assert geotiff_info['band_count'] > 0
+					assert isinstance(geotiff_info['band_types'], list)
+					assert isinstance(geotiff_info['band_interpretations'], list)
+					assert len(geotiff_info['band_types']) == geotiff_info['band_count']
+					assert len(geotiff_info['band_interpretations']) == geotiff_info['band_count']
+
+				# Cleanup: Remove the dataset and related info from the database
 				if dataset_id:
 					with use_client(auth_token) as supabase_client:
+						# GeoTIFF info will be automatically deleted due to CASCADE
 						# Delete from metadata table first (due to foreign key constraint)
 						supabase_client.table(settings.metadata_table).delete().eq('dataset_id', dataset_id).execute()
 						# Delete from datasets table

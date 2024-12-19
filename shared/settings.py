@@ -17,6 +17,7 @@ _production_tables = {
 	'logs': 'logs',
 	'label_objects': 'v1_label_objects',
 	'queue': 'v1_queue',
+	'geotiff_info': 'v1_geotiff_info',
 	'queue_positions': 'v1_queue_positions',
 }
 
@@ -30,6 +31,7 @@ _dev_tables = {
 	'label_objects': 'dev_label_objects',
 	'queue': 'dev_queue',
 	'queue_positions': 'dev_queue_positions',
+	'geotiff_info': 'dev_geotiff_info',
 }
 
 
@@ -171,6 +173,10 @@ class Settings(BaseSettings):
 	@property
 	def queue_position_table(self) -> str:
 		return self._tables['queue_positions']
+
+	@property
+	def geotiff_info_table(self) -> str:
+		return self._tables['geotiff_info']
 
 
 settings = Settings()

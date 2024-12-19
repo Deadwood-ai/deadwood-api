@@ -12,7 +12,12 @@ from shared.supabase import use_client, verify_token
 from shared.settings import settings
 from shared.logger import logger
 
-from ..upload.upload import create_initial_dataset_entry, get_transformed_bounds, get_file_identifier
+from ..upload.upload import (
+	create_initial_dataset_entry,
+	get_transformed_bounds,
+	get_file_identifier,
+	create_geotiff_info_entry,
+)
 
 router = APIRouter()
 
@@ -57,10 +62,6 @@ async def upload_geotiff_chunk(
 
 			# Get final hash
 			final_sha256 = get_file_identifier(target_path)
-			# logger.info(
-			# 	f'Hashing took {hash_time:.2f}s for {target_path.stat().st_size / 1024 / 1024 / 1024:.2f} GB',
-			# 	extra={'token': token},
-			# )
 
 			# Get bounds
 			bbox = get_transformed_bounds(target_path)
@@ -76,6 +77,17 @@ async def upload_geotiff_chunk(
 				bbox=bbox,
 				sha256=final_sha256,
 			)
+			try:
+				geotiff_info = create_geotiff_info_entry(target_path, dataset.id, token)
+				logger.info(
+					f'Extracted GeoTIFF info for dataset {dataset.id}, {geotiff_info}',
+					extra={'token': token},
+				)
+			except Exception as e:
+				logger.error(
+					f'Error extracting GeoTIFF info for dataset {dataset.id}: {str(e)}',
+					extra={'token': token},
+				)
 
 			return dataset
 
