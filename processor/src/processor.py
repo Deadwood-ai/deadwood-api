@@ -1,4 +1,5 @@
 import shutil
+import time
 
 from shared.models import QueueTask, StatusEnum, Dataset
 from shared.settings import settings
@@ -192,5 +193,29 @@ def background_process():
 		# Timer(interval=settings.task_retry_delay, function=background_process).start()
 
 
+def run_processor():
+	"""
+	Main processor loop that runs continuously in development mode,
+	or once in production mode (for cron job execution)
+	"""
+	try:
+		if settings.DEV_MODE:
+			logger.info('Starting processor in development mode (continuous loop)...')
+			while True:
+				background_process()
+				time.sleep(30)  # Development polling interval
+		else:
+			logger.info('Starting processor in production mode (single run)...')
+			background_process()
+
+	except Exception as e:
+		logger.error(f'Critical processor error: {e}')
+		if settings.DEV_MODE:
+			time.sleep(5)  # Wait before retrying in dev mode
+			run_processor()  # Restart the loop in dev mode
+		else:
+			raise  # In production, let the error propagate
+
+
 if __name__ == '__main__':
-	background_process()
+	run_processor()
