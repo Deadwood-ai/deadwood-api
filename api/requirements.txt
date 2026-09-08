@@ -8,7 +8,7 @@ python-multipart
 supabase
 gotrue
 numpy>=2,<2.5
-rasterio==1.5.0
+rasterio==1.5.1
 rio-cogeo
 fire
 overpy
