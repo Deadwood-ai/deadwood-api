@@ -43,7 +43,7 @@
     "lodash": "^4.18.1",
     "match-sorter": "^6.3.4",
     "ol": "^10.10.0",
-    "ol-mapbox-style": "^13.4.2",
+    "ol-mapbox-style": "^13.4.3",
     "polygon-clipping": "0.15.7",
     "posthog-js": "^1.409.5",
     "proj4": "^2.21.0",
@@ -70,18 +70,18 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.61.1",
     "@vitejs/plugin-react": "^6.0.5",
-    "autoprefixer": "^10.5.4",
+    "autoprefixer": "^10.5.5",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^17.8.0",
-    "postcss": "^8.5.25",
+    "postcss": "^8.5.28",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
-    "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "object-path": "0.11.8"
