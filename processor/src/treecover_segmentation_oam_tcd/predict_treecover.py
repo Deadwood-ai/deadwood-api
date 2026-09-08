@@ -3,6 +3,8 @@ import os
 import uuid
 import json
 import time
+import math
+from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import rasterio
@@ -50,6 +52,16 @@ MODULE_NAME = 'treecover_segmentation_oam_tcd'
 CHECKPOINT_NAME = TCD_MODEL
 
 
+@dataclass(frozen=True)
+class _TCDTimeoutPolicy:
+	timeout_seconds: int
+	base_timeout_seconds: int
+	max_timeout_seconds: int
+	base_pixels: int
+	input_pixels: int | None
+	capped: bool
+
+
 class _TCDContainerTimeout(Exception):
 	"""Raised when the TCD Docker wait call reaches its allowed wall time."""
 
@@ -79,6 +91,38 @@ def _is_docker_wait_timeout(exc: BaseException) -> bool:
 			stack.extend(arg for arg in current.args if isinstance(arg, BaseException))
 
 	return isinstance(exc, requests.exceptions.ConnectionError) and 'Read timed out' in str(exc)
+
+
+def _compute_tcd_timeout_policy(input_width: int | None = None, input_height: int | None = None) -> _TCDTimeoutPolicy:
+	"""
+	Choose a TCD wall-time limit from configured base timeout and input size.
+
+	TCD runtime scales with the number of pixels passed to the model. The configured
+	timeout remains the floor for ordinary inputs; very large orthos get more time
+	up to a separate cap so a single stuck container cannot block the processor
+	indefinitely.
+	"""
+	base_timeout_seconds = max(1, settings.TCD_CONTAINER_TIMEOUT_SECONDS)
+	max_timeout_seconds = max(base_timeout_seconds, settings.TCD_CONTAINER_TIMEOUT_MAX_SECONDS)
+	base_pixels = max(1, settings.TCD_CONTAINER_TIMEOUT_BASE_PIXELS)
+	input_pixels = None
+	timeout_seconds = base_timeout_seconds
+
+	if input_width is not None and input_height is not None and input_width > 0 and input_height > 0:
+		input_pixels = input_width * input_height
+		if input_pixels > base_pixels:
+			timeout_seconds = math.ceil(base_timeout_seconds * input_pixels / base_pixels)
+
+	capped = timeout_seconds > max_timeout_seconds
+	timeout_seconds = min(timeout_seconds, max_timeout_seconds)
+	return _TCDTimeoutPolicy(
+		timeout_seconds=timeout_seconds,
+		base_timeout_seconds=base_timeout_seconds,
+		max_timeout_seconds=max_timeout_seconds,
+		base_pixels=base_pixels,
+		input_pixels=input_pixels,
+		capped=capped,
+	)
 
 
 class _GeneratorStream(io.RawIOBase):
@@ -276,7 +320,13 @@ def _copy_files_to_tcd_volume(ortho_path: str, volume_name: str, dataset_id: int
 				)
 
 
-def _run_tcd_pipeline_container(volume_name: str, dataset_id: int, token: str) -> str:
+def _run_tcd_pipeline_container(
+	volume_name: str,
+	dataset_id: int,
+	token: str,
+	input_width: int | None = None,
+	input_height: int | None = None,
+) -> str:
 	"""
 	Execute TCD container using Pipeline class via Python script for complete confidence map output.
 
@@ -300,7 +350,18 @@ def _run_tcd_pipeline_container(volume_name: str, dataset_id: int, token: str) -
 		LogContext(category=LogCategory.TREECOVER, token=token, dataset_id=dataset_id),
 	)
 
-	tcd_timeout_seconds = max(1, settings.TCD_CONTAINER_TIMEOUT_SECONDS)
+	timeout_policy = _compute_tcd_timeout_policy(input_width=input_width, input_height=input_height)
+	tcd_timeout_seconds = timeout_policy.timeout_seconds
+	logger.info(
+		'TCD container timeout policy: '
+		f'timeout_seconds={timeout_policy.timeout_seconds}, '
+		f'base_timeout_seconds={timeout_policy.base_timeout_seconds}, '
+		f'max_timeout_seconds={timeout_policy.max_timeout_seconds}, '
+		f'base_pixels={timeout_policy.base_pixels}, '
+		f'input_pixels={timeout_policy.input_pixels}, '
+		f'capped={timeout_policy.capped}',
+		LogContext(category=LogCategory.TREECOVER, token=token, dataset_id=dataset_id),
+	)
 
 	try:
 		# Preflight: ensure image exists
@@ -329,7 +390,9 @@ def _run_tcd_pipeline_container(volume_name: str, dataset_id: int, token: str) -
 				environment={
 					'NVIDIA_VISIBLE_DEVICES': 'all',
 					'NVIDIA_DRIVER_CAPABILITIES': 'compute,utility',
-				} if use_gpu else {},
+				}
+				if use_gpu
+				else {},
 				labels={
 					**resource_labels,
 					'dt_role': 'tcd_pipeline',
@@ -603,6 +666,9 @@ def predict_treecover(dataset_id: int, file_path: Path, user_id: str, token: str
 			LogContext(category=LogCategory.TREECOVER, token=token, dataset_id=dataset_id),
 		)
 		reprojected_path = Path(_reproject_orthomosaic_for_tcd(str(file_path), str(reprojected_temp_path)))
+		with rasterio.open(str(reprojected_path)) as reprojected_src:
+			reprojected_width = reprojected_src.width
+			reprojected_height = reprojected_src.height
 
 		# Step 2: Container Setup - Create shared volume and copy reprojected ortho
 		volume_name = f'tcd_volume_{dataset_id}_{uuid.uuid4().hex[:8]}'
@@ -625,7 +691,13 @@ def predict_treecover(dataset_id: int, file_path: Path, user_id: str, token: str
 			LogContext(category=LogCategory.TREECOVER, token=token, dataset_id=dataset_id),
 		)
 
-		_run_tcd_pipeline_container(volume_name, dataset_id, token)
+		_run_tcd_pipeline_container(
+			volume_name,
+			dataset_id,
+			token,
+			input_width=reprojected_width,
+			input_height=reprojected_height,
+		)
 
 		# Refresh token before extraction - TCD containers can run for hours and token may have expired
 		token = login(settings.PROCESSOR_USERNAME, settings.PROCESSOR_PASSWORD)

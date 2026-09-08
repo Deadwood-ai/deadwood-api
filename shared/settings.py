@@ -50,6 +50,8 @@ class Settings(BaseSettings):
 	# Containers
 	TCD_CONTAINER_IMAGE: str = 'deadtrees-tcd:latest'
 	TCD_CONTAINER_TIMEOUT_SECONDS: int = 14400
+	TCD_CONTAINER_TIMEOUT_MAX_SECONDS: int = 43200
+	TCD_CONTAINER_TIMEOUT_BASE_PIXELS: int = 2_000_000_000
 
 	# docker.from_env() defaults to a 60s read timeout on the daemon socket, which applies
 	# to control-plane calls (containers.create/start, put_archive, wait). When the host disk
@@ -205,7 +207,9 @@ class Settings(BaseSettings):
 
 	def model_post_init(self, __context):
 		if 'API_ENDPOINT' not in self.model_fields_set:
-			self.API_ENDPOINT = 'http://localhost:8080/api/v1/' if self.DEV_MODE else 'https://data2.deadtrees.earth/api/v1/'
+			self.API_ENDPOINT = (
+				'http://localhost:8080/api/v1/' if self.DEV_MODE else 'https://data2.deadtrees.earth/api/v1/'
+			)
 		if 'API_ENTPOINT_DATASETS' not in self.model_fields_set:
 			self.API_ENTPOINT_DATASETS = self.API_ENDPOINT + 'datasets/chunk'
 		if 'PREPACKAGED_DOWNLOAD_BASE_URL' not in self.model_fields_set:
