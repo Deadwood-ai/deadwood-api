@@ -9,7 +9,7 @@ from shared.db import use_client
 from shared.zip_utils import ensure_supported_zip_compression
 
 
-async def process_raw_images_upload(dataset: Dataset, upload_target_path: Path, token: str) -> Dataset:
+def process_raw_images_upload(dataset: Dataset, upload_target_path: Path, token: str) -> Dataset:
 	"""Process ZIP upload with minimal logic - only store ZIP file, no extraction or analysis
 
 	Args:

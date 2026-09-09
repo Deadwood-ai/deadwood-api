@@ -1,7 +1,6 @@
 from typing import Annotated, Optional, List
 
 import time
-import aiofiles
 from fastapi import UploadFile, Depends, HTTPException, Form, APIRouter
 from fastapi.security import OAuth2PasswordBearer
 
@@ -17,6 +16,7 @@ from shared.zip_utils import (
 )
 
 from ..upload.upload import create_dataset_entry
+from ..upload.chunk_session import locked_chunk_session
 from ..upload.geotiff_processor import process_geotiff_upload
 from ..upload.raw_images_processor import process_raw_images_upload
 from ..utils.file_utils import UploadType, detect_upload_type
@@ -33,11 +33,11 @@ logger.add_supabase_handler(SupabaseHandler())
 
 
 @router.post('/datasets/chunk')
-async def upload_chunk(
+def upload_chunk(
 	file: UploadFile,
-	chunk_index: Annotated[int, Form()],
-	chunks_total: Annotated[int, Form()],
-	upload_id: Annotated[str, Form()],
+	chunk_index: Annotated[int, Form(ge=0)],
+	chunks_total: Annotated[int, Form(gt=0)],
+	upload_id: Annotated[str, Form(min_length=1, max_length=128, pattern=r'^[A-Za-z0-9_-]+$')],
 	token: Annotated[str, Depends(oauth2_scheme)],
 	# Dataset required fields
 	license: Annotated[LicenseEnum, Form()],
@@ -67,8 +67,8 @@ async def upload_chunk(
 	# Start upload timer
 	t1 = time.time()
 
-	chunk_index = int(chunk_index)
-	chunks_total = int(chunks_total)
+	if chunk_index >= chunks_total:
+		raise HTTPException(status_code=422, detail='Chunk index must be less than chunks_total')
 
 	upload_file_name = f'{upload_id}.tmp'
 	# Write raw images directly to raw_images path, GeoTIFF to archive path
@@ -88,26 +88,33 @@ async def upload_chunk(
 		),
 	)
 
-	# Write chunk
-	try:
-		content = await file.read()
-		mode = 'wb' if chunk_index == 0 else 'ab'
-		async with aiofiles.open(upload_target_path, mode) as buffer:
-			await buffer.write(content)
-	except Exception as e:
-		logger.error(
-			f'Error writing chunk {chunk_index}: {str(e)}',
-			LogContext(
-				category=LogCategory.UPLOAD,
-				user_id=user.id,
-				token=token,
-				extra={'upload_id': upload_id, 'chunk_index': chunk_index},
-			),
-		)
-		raise HTTPException(status_code=500, detail=f'Error writing chunk: {str(e)}')
-
-	# Process final chunk
-	if chunk_index == chunks_total - 1:
+	# Bind every request to the same immutable upload contract. Tokens may refresh.
+	metadata = {
+		'file_name': file.filename,
+		'license': license,
+		'platform': platform,
+		'authors': authors,
+		'project_id': project_id,
+		'aquisition_year': aquisition_year,
+		'aquisition_month': aquisition_month,
+		'aquisition_day': aquisition_day,
+		'additional_information': additional_information,
+		'data_access': data_access,
+		'citation_doi': citation_doi,
+	}
+	# This synchronous route runs in FastAPI's worker pool. The lock remains held
+	# through all disk/DB work, including when the caller disconnects.
+	with locked_chunk_session(
+		settings.base_path / '.upload-sessions',
+		upload_id,
+		upload_target_path,
+		str(user.id),
+		{'chunks_total': chunks_total, 'upload_type': upload_type.value, **metadata},
+	) as session:
+		response = session.accept(chunk_index, file.file.read())
+		if response is not None:
+			return response
+		session.begin_finalization()
 		try:
 			# Calculate upload runtime
 			t2 = time.time()
@@ -135,43 +142,21 @@ async def upload_chunk(
 			)
 
 			# Create dataset entry
-			dataset = create_dataset_entry(
-				user_id=user.id,
-				file_name=file.filename,
-				license=license,
-				platform=platform,
-				authors=authors,
-				project_id=project_id,
-				aquisition_year=aquisition_year,
-				aquisition_month=aquisition_month,
-				aquisition_day=aquisition_day,
-				additional_information=additional_information,
-				data_access=data_access,
-				citation_doi=citation_doi,
-				token=token,
-			)
+			dataset = create_dataset_entry(user_id=user.id, token=token, **metadata)
 
 			# Route to simplified processing based on upload type
 			if upload_type == UploadType.GEOTIFF:
 				# Call simplified GeoTIFF processing
-				dataset = await process_geotiff_upload(dataset, upload_target_path, token)
+				dataset = process_geotiff_upload(dataset, upload_target_path, token)
 				file_name = f'{dataset.id}_ortho.tif'
 				target_path = settings.archive_path / file_name
 			elif upload_type == UploadType.RAW_IMAGES_ZIP:
 				# Call simplified ZIP processing
-				dataset = await process_raw_images_upload(dataset, upload_target_path, token)
+				dataset = process_raw_images_upload(dataset, upload_target_path, token)
 				file_name = f'{dataset.id}.zip'  # Actual ZIP filename
 				target_path = settings.raw_images_path / file_name  # Actual file location, not directory
 
-			# Note: Status update is now handled within processing functions
-			# No additional status update needed here
-
-			# Calculate appropriate size based on upload type
-			if upload_type == UploadType.GEOTIFF:
-				file_size = target_path.stat().st_size
-			else:  # RAW_IMAGES_ZIP
-				# Calculate total size of extracted directory contents
-				file_size = sum(f.stat().st_size for f in target_path.rglob('*') if f.is_file())
+			file_size = target_path.stat().st_size
 
 			logger.info(
 				f'Upload completed successfully for dataset {dataset.id}',
@@ -188,7 +173,9 @@ async def upload_chunk(
 				),
 			)
 
-			return dataset
+			response = dataset.model_dump(mode='json')
+			session.complete(response)
+			return response
 
 		except (UnsupportedZipCompressionError, InvalidZipArchiveError) as e:
 			logger.warning(
@@ -233,119 +220,3 @@ async def upload_chunk(
 					error_message=str(e),
 				)
 			raise HTTPException(status_code=500, detail=str(e))
-
-	return {'message': f'Chunk {chunk_index} of {chunks_total} received'}
-
-
-# Main routes for the logic
-# @router.post('/datasets')
-# async def upload_geotiff(file: UploadFile, token: Annotated[str, Depends(oauth2_scheme)]):
-# 	"""
-# 	Create a new Dataset by uploading a GeoTIFF file.
-
-# 	Further metadata is not yet necessary. The response will contain a Dataset.id
-# 	that is needed for subsequent calls to the API. Once, the GeoTIFF is uploaded,
-# 	the backend will start pre-processing the file.
-# 	It can only be used in the front-end once preprocessing finished AND all mandatory
-# 	metadata is set.
-
-# 	To send the file use the `multipart/form-data` content type. The file has to be sent as the
-# 	value of a field named `file`. For example, using HTML forms like this:
-
-# 	```html
-# 	<form action="/upload" method="post" enctype="multipart/form-data">
-# 	    <input type="file" name="file">
-# 	    <input type="submit">
-# 	</form>
-# 	```
-
-# 	Or using the `requests` library in Python like this:
-
-# 	```python
-# 	import requests
-# 	url = "http://localhost:8000/upload"
-# 	files = {"file": open("example.txt", "rb")}
-# 	response = requests.post(url, files=files)
-# 	print(response.json())
-# 	```
-
-# 	"""
-# 	# first thing we do is verify the token
-# 	user = verify_token(token)
-# 	if not user:
-# 		return HTTPException(status_code=401, detail='Invalid token')
-
-# 	# we create a uuid for this dataset
-# 	uid = str(uuid.uuid4())
-
-# 	# new file name
-# 	file_name = f'{uid}_{Path(file.filename).stem}.tif'
-
-# 	# use the settings path to figure out a new location for this file
-# 	target_path = settings.archive_path / file_name
-
-# 	# start a timer
-# 	t1 = time.time()
-
-# 	# Stream the file in chunks instead of loading it all at once
-# 	sha256_hash = hashlib.sha256()
-# 	chunk_size = 4 * 1024 * 1024  # 4MB chunks for better performance with large files
-
-# 	try:
-# 		with target_path.open('wb') as buffer:
-# 			while chunk := await file.read(chunk_size):
-# 				buffer.write(chunk)
-# 				sha256_hash.update(chunk)
-
-# 		sha256 = sha256_hash.hexdigest()
-# 	except Exception as e:
-# 		logger.exception(f'Error saving file: {str(e)}', extra={'token': token})
-# 		raise HTTPException(status_code=400, detail=f'Error saving file: {str(e)}')
-
-# 	# try to open with rasterio
-# 	with rasterio.open(str(target_path), 'r') as src:
-# 		bounds = src.bounds
-# 		transformed_bounds = rasterio.warp.transform_bounds(src.crs, 'EPSG:4326', *bounds)
-
-# 	# stop the timer
-# 	t2 = time.time()
-
-# 	# fill the metadata
-# 	# dataset = Dataset(
-# 	data = dict(
-# 		file_name=target_path.name,
-# 		file_alias=file.filename,
-# 		file_size=target_path.stat().st_size,
-# 		copy_time=t2 - t1,
-# 		sha256=sha256,
-# 		bbox=transformed_bounds,
-# 		status=StatusEnum.pending,
-# 		user_id=user.id,
-# 	)
-# 	# print(data)
-# 	dataset = Dataset(**data)
-
-# 	# upload the dataset
-# 	with use_client(token) as client:
-# 		try:
-# 			send_data = {k: v for k, v in dataset.model_dump().items() if k != 'id' and v is not None}
-# 			response = client.table(settings.datasets_table).insert(send_data).execute()
-# 		except Exception as e:
-# 			logger.exception(
-# 				f'An error occurred while trying to upload the dataset: {str(e)}',
-# 				extra={'token': token, 'user_id': user.id},
-# 			)
-# 			raise HTTPException(
-# 				status_code=400,
-# 				detail=f'An error occurred while trying to upload the dataset: {str(e)}',
-# 			)
-
-# 	# update the dataset with the id
-# 	dataset = Dataset(**response.data[0])
-
-# 	logger.info(
-# 		f'Created new dataset <ID={dataset.id}> with file {dataset.file_alias}. ({format_size(dataset.file_size)}). Took {dataset.copy_time:.2f}s.',
-# 		extra={'token': token, 'user_id': user.id, 'dataset_id': dataset.id},
-# 	)
-
-# 	return dataset

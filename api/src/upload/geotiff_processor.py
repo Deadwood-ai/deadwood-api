@@ -7,7 +7,7 @@ from shared.models import StatusEnum
 from shared.settings import settings
 
 
-async def process_geotiff_upload(dataset: Dataset, upload_target_path: Path, token: str) -> Dataset:
+def process_geotiff_upload(dataset: Dataset, upload_target_path: Path, token: str) -> Dataset:
 	"""Process GeoTIFF upload with simplified logic - only file storage, no technical analysis
 
 	Args:

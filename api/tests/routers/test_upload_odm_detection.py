@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -43,7 +45,7 @@ def test_chunk_endpoint_accepts_upload_type_parameter(auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '2',  # Make it not the final chunk
-		'upload_id': 'test-upload-id',
+		'upload_id': f'test-upload-id-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -68,7 +70,7 @@ def test_chunk_endpoint_zip_upload_type_implemented(auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-upload-id',
+		'upload_id': f'test-upload-id-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -92,7 +94,7 @@ def test_backward_compatibility_auto_detection(auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '2',  # Make it not the final chunk
-		'upload_id': 'test-upload-id-compat',
+		'upload_id': f'test-upload-id-compat-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -116,7 +118,7 @@ def test_backward_compatibility_zip_auto_detection(auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-upload-id-zip-compat',
+		'upload_id': f'test-upload-id-zip-compat-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -139,7 +141,7 @@ def test_backward_compatibility_unsupported_auto_detection(auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-upload-id-unsupported',
+		'upload_id': f'test-upload-id-unsupported-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -162,7 +164,7 @@ def test_chunk_endpoint_without_auth():
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-upload-id',
+		'upload_id': f'test-upload-id-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -186,7 +188,7 @@ def test_chunk_endpoint_rejects_unsupported_zip_compression(auth_token, monkeypa
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-upload-id-unsupported-compression',
+		'upload_id': f'test-upload-id-unsupported-compression-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],

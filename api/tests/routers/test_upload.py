@@ -9,6 +9,8 @@ Key test objectives:
 - NO technical analysis during upload (ortho creation deferred to processor)
 """
 
+from uuid import uuid4
+
 import pytest
 from pathlib import Path
 import tempfile
@@ -47,7 +49,7 @@ def test_geotiff_upload_creates_dataset_no_ortho(test_file, auth_token, test_use
 	# Setup
 	file_size = test_file.stat().st_size
 	chunks_total = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
-	upload_id = 'test-geotiff'
+	upload_id = f'test-geotiff-{uuid4()}'
 
 	# Required form data
 	form_data = {
@@ -133,7 +135,7 @@ def test_zip_upload_creates_dataset_and_raw_images(temp_test_zip, auth_token, te
 	# Setup
 	file_size = temp_test_zip.stat().st_size
 	chunks_total = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
-	upload_id = 'test-zip'
+	upload_id = f'test-zip-{uuid4()}'
 
 	# Required form data
 	form_data = {
@@ -190,9 +192,9 @@ def test_zip_upload_creates_dataset_and_raw_images(temp_test_zip, auth_token, te
 
 				# Verify NO extraction directory exists during upload phase
 				extraction_dir = settings.raw_images_path / str(dataset_id)
-				assert not extraction_dir.exists(), (
-					'Files should NOT be extracted during upload (deferred to ODM processing)'
-				)
+				assert (
+					not extraction_dir.exists()
+				), 'Files should NOT be extracted during upload (deferred to ODM processing)'
 
 				# Verify raw_images database entry created with minimal info
 				with use_client(auth_token) as supabase_client:
@@ -242,7 +244,7 @@ def test_upload_auto_detects_type_when_not_provided(test_file, auth_token):
 	form_data = {
 		'chunk_index': '0',
 		'chunks_total': '1',
-		'upload_id': 'test-auto-detect',
+		'upload_id': f'test-auto-detect-{uuid4()}',
 		'license': LicenseEnum.cc_by.value,
 		'platform': PlatformEnum.drone.value,
 		'authors': ['Test Author'],
@@ -270,7 +272,7 @@ def test_upload_without_auth():
 		data={
 			'chunk_index': '0',
 			'chunks_total': '1',
-			'upload_id': 'test',
+			'upload_id': f'test-{uuid4()}',
 			'license': LicenseEnum.cc_by.value,
 			'platform': PlatformEnum.drone.value,
 			'authors': ['Test Author'],
