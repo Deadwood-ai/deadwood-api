@@ -1,8 +1,17 @@
 -- Trusted internal SQL inspection. Password provisioning is separate from DDL.
 BEGIN;
-CREATE ROLE analyst NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
-CREATE ROLE team_analyst NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
-  NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 20;
+-- Roles are cluster-wide and survive Supabase's database reset.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'analyst') THEN
+    CREATE ROLE analyst NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'team_analyst') THEN
+    CREATE ROLE team_analyst NOLOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
+      NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 20;
+  END IF;
+END
+$$;
 GRANT analyst TO team_analyst;
 ALTER ROLE team_analyst SET default_transaction_read_only = on;
 ALTER ROLE team_analyst SET statement_timeout = '30s';
