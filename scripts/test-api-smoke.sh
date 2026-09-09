@@ -43,6 +43,8 @@ fi
 
 api_smoke_tests=(
 	api/tests/routers/test_contributor_contract_smoke.py
+	api/tests/routers/test_upload_retries.py
+	api/tests/upload/test_chunk_session.py
 	api/tests/routers/test_upload_odm_detection.py
 	api/tests/routers/test_process.py
 	api/tests/routers/test_prepackaged.py
