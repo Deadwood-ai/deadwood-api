@@ -119,7 +119,8 @@ COMMENT ON VIEW public.v2_full_dataset_view_owner IS
 
 -- The public view uses invoker RLS: a hidden audit row must not turn an
 -- excluded dataset into an apparently unreviewed public dataset.
-create or replace view "public"."v2_full_dataset_view_public" as
+create or replace view "public"."v2_full_dataset_view_public"
+with (security_invoker = true) as
 select
   base.id,
   base.user_id,

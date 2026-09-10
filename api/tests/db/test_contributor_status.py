@@ -55,3 +55,21 @@ def test_excluded_owner_can_read_review_but_other_users_cannot(status_db, archiv
 	assert db.execute('SELECT id FROM public.v2_full_dataset_view_public WHERE id=%s', (dataset,)).fetchall() == []
 	with pytest.raises(psycopg.errors.InsufficientPrivilege):
 		db.execute('SELECT public.get_dataset_status_details(%s)', (dataset,))
+
+
+def test_public_dataset_view_preserves_caller_rls(status_db):
+	db = status_db
+	options = db.execute("SELECT reloptions FROM pg_class WHERE oid='public.v2_full_dataset_view_public'::regclass").fetchone()[0]
+	assert 'security_invoker=true' in (options or [])
+	owner, other = uuid.uuid4(), uuid.uuid4()
+	for user in (owner, other):
+		db.execute("INSERT INTO auth.users(id,email) VALUES (%s,%s)", (user, f'{user}@example.invalid'))
+	dataset = db.execute(
+		"INSERT INTO public.v2_datasets(user_id,file_name,license,platform,data_access) VALUES (%s,'private.tif','CC BY','drone','private') RETURNING id",
+		(owner,),
+	).fetchone()[0]
+	db.execute('SET LOCAL ROLE authenticated')
+	db.execute("SELECT set_config('request.jwt.claims',%s,true)", (json.dumps({'sub': str(other), 'role': 'authenticated'}),))
+	assert db.execute('SELECT id FROM public.v2_full_dataset_view_public WHERE id=%s', (dataset,)).fetchall() == []
+	db.execute('SET LOCAL ROLE anon')
+	assert db.execute('SELECT id FROM public.v2_full_dataset_view_public WHERE id=%s', (dataset,)).fetchall() == []
