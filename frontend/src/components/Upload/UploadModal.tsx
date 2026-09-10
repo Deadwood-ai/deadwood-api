@@ -173,7 +173,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isVisible, onClose, uploadKey
       const errorMessage =
         error instanceof Error ? error.message : "File validation failed. Please choose a different file.";
       setUploadValidationError(errorMessage);
-      message.error(errorMessage);
+      message.error("File could not be added. See the details below the file picker.");
       return Upload.LIST_IGNORE;
     }
   };
@@ -396,7 +396,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ isVisible, onClose, uploadKey
               <Alert
                 type="error"
                 showIcon
-                message={uploadValidationError}
+                message="File could not be added"
+                description={uploadValidationError}
                 className="mb-3"
               />
             ) : null}

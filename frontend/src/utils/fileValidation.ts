@@ -156,13 +156,49 @@ const methodName = (method: number): string => {
   }
 };
 
+const zipInspectionErrorMessage = (error: unknown): string => {
+  // Keep file paths and arbitrary exception text out of user-facing diagnostics.
+  const detail = error instanceof Error ? error.message : "";
+  const name = error instanceof Error ? error.name : "";
+  const rebuild =
+    "Recreate the ZIP from the original files using a ZIP64-capable archiver.";
+
+  if (["NotReadableError", "SecurityError", "NotAllowedError", "AbortError"].includes(name)) {
+    return "Your browser could not read this ZIP. Select a complete local copy. " +
+      "No upload has started. Code: ZIP_FILE_READ.";
+  }
+  if (/^multi-volume zip files are not supported\./.test(detail)) {
+    return "This split archive is not supported. Create a single ZIP from the original files. " +
+      "No upload has started. Code: ZIP_MULTIVOLUME.";
+  }
+  if (detail === "strong encryption is not supported") {
+    return "This ZIP uses unsupported encryption. Recreate it without a password. " +
+      "No upload has started. Code: ZIP_ENCRYPTED.";
+  }
+  if (/^(invalid zip64 |expected zip64 |zip64 extended information extra field)/.test(detail)) {
+    return "We could not read the ZIP64 metadata. " +
+      `${rebuild} No upload has started. Code: ZIP64_INVALID.`;
+  }
+  if (detail === "could not find end of central directory. maybe not zip file") {
+    return "The ZIP file index is missing; the file may be incomplete. " +
+      "Finish downloading or copying it, then select it again. No upload has started. Code: ZIP_INDEX_MISSING.";
+  }
+  if (/^(invalid central directory file header signature:|invalid comment length\.|extra field length exceeds|compressed size mismatch for stored file:)/.test(detail)) {
+    return "The ZIP file index is inconsistent. " +
+      `${rebuild} No upload has started. Code: ZIP_INDEX_INVALID.`;
+  }
+  return "We could not inspect this ZIP. Try a complete local copy. " +
+    "If it still fails, contact info@deadtrees.earth with this code. " +
+    "No upload has started. Code: ZIP_INSPECTION_FAILED.";
+};
+
 export const validateZipCompressionMethods = async (file: File): Promise<void> => {
   let entries: ZipEntryWithCompressionMethod[] = [];
   try {
     const zipInfo = await unzipRaw(file);
     entries = zipInfo.entries as ZipEntryWithCompressionMethod[];
-  } catch {
-    throw new Error("Invalid ZIP archive");
+  } catch (error) {
+    throw Object.assign(new Error(zipInspectionErrorMessage(error)), { cause: error });
   }
 
   const methodCounts = new Map<number, number>();
