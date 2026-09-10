@@ -156,13 +156,53 @@ const methodName = (method: number): string => {
   }
 };
 
+const zipInspectionErrorMessage = (error: unknown): string => {
+  // Keep file paths and arbitrary exception text out of user-facing diagnostics.
+  const detail = error instanceof Error ? error.message : "";
+  const name = error instanceof Error ? error.name : "";
+  const rebuild =
+    "Create a new single ZIP from the original files using stored or deflate compression. " +
+    "For archives over 4 GB, use a ZIP64-capable archiver. ZIP uploads up to 30 GB are supported.";
+
+  if (["NotReadableError", "SecurityError", "NotAllowedError", "AbortError"].includes(name)) {
+    return "Your browser could not read the selected ZIP. Save or download a complete local copy, " +
+      "check that it is accessible, then select it again. No upload has started. Diagnostic: ZIP_FILE_READ.";
+  }
+  if (/^multi-volume zip files are not supported\./.test(detail)) {
+    return "This is part of a split ZIP archive, which is not supported. Create a single ZIP from " +
+      "the original files instead of uploading individual parts. No upload has started. Diagnostic: ZIP_MULTIVOLUME.";
+  }
+  if (detail === "strong encryption is not supported") {
+    return "This ZIP uses unsupported encryption. Create a new ZIP without a password using stored " +
+      "or deflate compression. No upload has started. Diagnostic: ZIP_ENCRYPTED.";
+  }
+  if (/^(invalid zip64 |expected zip64 |zip64 extended information extra field)/.test(detail)) {
+    return "We could not read this archive's ZIP64 metadata. It may be incomplete or incorrectly written. " +
+      `${rebuild} No upload has started. Diagnostic: ZIP64_INVALID.`;
+  }
+  if (detail === "could not find end of central directory. maybe not zip file") {
+    return "We could not find the ZIP file index. The file may be incomplete or may not be a ZIP archive. " +
+      "Make sure any download or copy has finished. " +
+      `${rebuild} No upload has started. Diagnostic: ZIP_INDEX_MISSING.`;
+  }
+  if (/^(invalid central directory file header signature:|invalid comment length\.|extra field length exceeds|compressed size mismatch for stored file:)/.test(detail)) {
+    return "We could not read the ZIP file index because its metadata is inconsistent. " +
+      "The archive may be incomplete or incorrectly written; we cannot determine the exact cause here. " +
+      `${rebuild} No upload has started. Diagnostic: ZIP_INDEX_INVALID.`;
+  }
+  return "We could not inspect this ZIP in your browser. The exact cause is unknown. " +
+    "Try selecting a complete local copy or recreating the ZIP. If it still fails, contact " +
+    "info@deadtrees.earth with your browser, file size, ZIP creation tool and this diagnostic. " +
+    "No upload has started. Diagnostic: ZIP_INSPECTION_FAILED.";
+};
+
 export const validateZipCompressionMethods = async (file: File): Promise<void> => {
   let entries: ZipEntryWithCompressionMethod[] = [];
   try {
     const zipInfo = await unzipRaw(file);
     entries = zipInfo.entries as ZipEntryWithCompressionMethod[];
-  } catch {
-    throw new Error("Invalid ZIP archive");
+  } catch (error) {
+    throw Object.assign(new Error(zipInspectionErrorMessage(error)), { cause: error });
   }
 
   const methodCounts = new Map<number, number>();

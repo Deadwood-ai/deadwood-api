@@ -1,4 +1,5 @@
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page, type Route } from "@playwright/test";
@@ -86,6 +87,35 @@ test.describe("contributor local e2e", () => {
       page.getByTestId("contributor-upload-author-select"),
     ).toBeVisible();
     await expect(page.getByTestId("contributor-upload-submit")).toBeDisabled();
+  });
+
+  test("ZIP validation explains a broken index before upload and clears after a valid selection", async ({ page }) => {
+    await installAuthenticatedContributor(page);
+    let uploadRequests = 0;
+    await page.route(`${localApiUrl}/datasets/chunk`, async (route) => {
+      uploadRequests += 1;
+      await route.abort();
+    });
+    await page.goto("/profile");
+    await page.getByRole("button", { name: "Upload Data" }).click();
+    const modal = page.getByTestId("contributor-upload-modal");
+    const input = page.getByTestId("contributor-upload-dropzone");
+    const bytes = await readFile(path.resolve(__dirname, "../test/fixtures/zip/mixed-stored.zip"));
+    // Point the ZIP index at the local file header, reproducing an invalid directory offset.
+    bytes.writeUInt32LE(0, bytes.length - 6);
+    await input.setInputFiles({ name: "broken-index.zip", mimeType: "application/zip", buffer: bytes });
+    const error = modal.getByRole("alert");
+    await expect(error).toContainText("File could not be added");
+    await expect(error).toContainText("ZIP_INDEX_INVALID");
+    await expect(error).toContainText("ZIP64-capable archiver");
+    await expect(error).toContainText("No upload has started");
+    await expect(modal.getByTestId("contributor-upload-submit")).toBeDisabled();
+    await expect(modal.locator(".ant-upload-list-item")).toHaveCount(0);
+
+    await input.setInputFiles(path.resolve(__dirname, "../test/fixtures/zip/mixed-zip64.zip"));
+    await expect(error).toHaveCount(0);
+    await expect(modal.locator(".ant-upload-list-item")).toContainText("mixed-zip64.zip");
+    expect(uploadRequests).toBe(0);
   });
 
   test("GeoTIFF contribution sends upload and processing contracts", async ({
