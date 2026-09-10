@@ -121,6 +121,7 @@ def _handle_graceful_shutdown(signum, frame):
 					'current_status': StatusEnum.idle.value,
 					'has_error': False,
 					'error_message': None,
+					'error_stage': None,
 				}).eq('dataset_id', task.dataset_id).execute()
 			release_queue_task(token, task)
 		except Exception as e:
@@ -295,6 +296,7 @@ def _fail_crashed_task(token: str, task: QueueTask, status: dict | None) -> None
 		current_status=StatusEnum.idle,
 		has_error=True,
 		error_message=error_msg,
+		error_stage=crashed_stage if crashed_stage != 'unknown' else None,
 	)
 
 	# Create Linear issue for visibility
@@ -609,6 +611,7 @@ def process_task(task: QueueTask, token: str):
 			current_status=StatusEnum.idle,
 			has_error=True,
 			error_message=str(e),
+			error_stage=e.task_type if isinstance(e, ProcessingError) else 'processing',
 		)
 
 		try:

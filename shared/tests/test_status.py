@@ -184,3 +184,21 @@ def test_update_status_does_not_retry_non_transient_error(monkeypatch):
 		update_status('token', dataset_id=123, is_cog_done=True)
 
 	assert calls['n'] == 1
+
+
+def test_failure_stage_survives_progress_updates_and_clears_on_retry(monkeypatch):
+	updates = []
+	monkeypatch.setattr('shared.status.use_client', lambda token: _make_recording_client(updates))
+	update_status('token', 123, has_error=True, error_stage='cog_processing')
+	update_status('token', 123, is_thumbnail_done=True)
+	update_status('token', 123, has_error=False)
+	assert updates[0]['error_stage'] == 'cog_processing'
+	assert 'error_stage' not in updates[1]
+	assert updates[2]['error_stage'] is None
+
+
+def test_unknown_failure_does_not_reuse_an_older_stage(monkeypatch):
+	updates = []
+	monkeypatch.setattr('shared.status.use_client', lambda token: _make_recording_client(updates))
+	update_status('token', 123, has_error=True)
+	assert updates[0]['error_stage'] is None

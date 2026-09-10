@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
-import { Button, Table, Tag, Tooltip, Dropdown, MenuProps, Modal, message } from "antd";
+import { Button, Table, Tag, Tooltip, Dropdown, MenuProps, Modal, message, Alert } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { SortOrder } from "antd/es/table/interface";
 import { useNavigate } from "react-router-dom";
@@ -19,20 +19,26 @@ import {
 import { supabase } from "../hooks/useSupabase";
 import { useAuth } from "../hooks/useAuthProvider";
 import EditDatasetModal from "./EditDatasetModal";
-import ProcessingProgress from "./ProcessingProgress";
-import { isDatasetProcessingComplete } from "../utils/processingSteps";
+import StatusCell from "./DatasetStatus/StatusCell";
+import StatusDrawer from "./DatasetStatus/StatusDrawer";
+import MobileDatasets from "./DatasetStatus/MobileDatasets";
+import { useStatusSelection } from "./DatasetStatus/useStatusSelection";
+import {
+  canOpenOwnerMap,
+  processingStatus,
+  type ContributorDataset,
+  type QueueState,
+} from "./DatasetStatus/status";
 import { isGeonadirDataset } from "../utils/datasetUtils";
 import { fixAuthorNamesEncoding, sanitizeText } from "../utils/textUtils";
 import { IDataset } from "../types/dataset";
 import { useQueuePositions } from "../hooks/useQueuePositions";
-import { isDatasetViewable } from "../utils/datasetVisibility";
-import AuditBadge from "./AuditBadge";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useCanUploadPrivate } from "../hooks/useUserPrivileges";
 import { openDatasetDetail } from "../utils/datasetDetailNavigation";
 
-interface Dataset {
+interface Dataset extends ContributorDataset {
   id: number;
   file_name: string;
   aquisition_day?: number;
@@ -48,7 +54,11 @@ interface Dataset {
   admin_level_3: string | null;
   current_status?: string;
   has_error: boolean;
-  error_message?: string;
+  error_stage?: string | null;
+  cog_path?: string | null;
+  thumbnail_path?: string | null;
+  has_deadwood_prediction?: boolean;
+  has_forest_cover_prediction?: boolean;
   is_upload_done: boolean;
   is_ortho_done: boolean;
   is_cog_done: boolean;
@@ -82,7 +92,7 @@ const DataTable: React.FC<DataTableProps> = ({
   onResetSelectionComplete,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const { data: userData, isLoading: isLoadingData } = useUserDatasets();
+  const { data: userData, isLoading: isLoadingData, isError: isDataError } = useUserDatasets();
   const { status, user } = useAuth();
   const [datasetsInPublication, setDatasetsInPublication] = useState<number[]>([]);
 
@@ -108,7 +118,27 @@ const DataTable: React.FC<DataTableProps> = ({
 
   // Queue positions for user datasets
   const datasetIds = useMemo(() => (userData ? (userData as Dataset[]).map((d) => d.id) : []), [userData]);
-  const { data: queueById } = useQueuePositions(datasetIds);
+  const selection = useStatusSelection(sortedUserData);
+  const queue = useQueuePositions(selection.datasetId ? [...datasetIds, selection.datasetId] : datasetIds);
+  const queueFor = (id: number): QueueState => queue.isError ? { state: "error" } : queue.isPending ? { state: "loading" } : { state: "loaded", item: queue.data[id] };
+
+  // Focus returns to the control that opened the drawer. Email deep links open
+  // without a trigger, so nothing is focused for them.
+  const detailsTrigger = useRef<HTMLElement | null>(null);
+  const openDetails = (id: number, trigger?: HTMLElement) => {
+    detailsTrigger.current = trigger ?? null;
+    selection.select(id);
+  };
+  const closeDetails = () => {
+    selection.select();
+    const trigger = detailsTrigger.current;
+    detailsTrigger.current = null;
+    if (trigger?.isConnected) trigger.focus();
+  };
+
+  // Shared with the menu item: refreshes the detail query before navigating.
+  const viewMap = (datasetId: number) =>
+    openDatasetDetail({ queryClient, navigate: nav, datasetId, authStatus: status, userId: user?.id });
 
   // Effect to reset selection when requested
   useEffect(() => {
@@ -158,18 +188,10 @@ const DataTable: React.FC<DataTableProps> = ({
     fetchDatasetsInPublication();
   }, [user]);
 
-  console.debug("userData in DataTable", userData);
-
-  const isDatasetComplete = (record: Dataset): boolean => {
-    return isDatasetProcessingComplete(record);
-  };
-
-  // Dataset is viewable on the map - use centralized utility
-  // Note: isDatasetViewable is imported from utils/datasetVisibility
-
   // Dataset is eligible for publishing when processing artifacts and metadata are ready (predictions not required)
   const isDatasetPublishEligible = (record: Dataset): boolean => {
     return !!(
+      record.final_assessment !== "exclude_completely" &&
       !record.has_error &&
       record.is_upload_done &&
       record.is_ortho_done &&
@@ -283,7 +305,7 @@ const DataTable: React.FC<DataTableProps> = ({
   };
 
   const getActionMenuItems = (record: Dataset): MenuProps["items"] => {
-    const canView = isDatasetViewable(record);
+    const canView = canOpenOwnerMap(record);
     const canPublish = isDatasetPublishEligible(record);
     const isSelected = selectedRowKeys.includes(record.id);
     const isPublished = !!record.freidata_doi || !!record.citation_doi;
@@ -339,14 +361,7 @@ const DataTable: React.FC<DataTableProps> = ({
         label: "View Map",
         icon: <EnvironmentOutlined />,
         disabled: !canView,
-        onClick: () =>
-          openDatasetDetail({
-            queryClient,
-            navigate: nav,
-            datasetId: record.id,
-            authStatus: status,
-            userId: user?.id,
-          }),
+        onClick: () => viewMap(record.id),
       },
       {
         key: "edit",
@@ -365,6 +380,32 @@ const DataTable: React.FC<DataTableProps> = ({
 
   const columns: ColumnsType<Dataset> = [
     {
+      title: "File Name",
+      dataIndex: "file_name",
+      key: "file_name",
+      width: 165,
+      // First and pinned so the row stays identifiable when narrow screens scroll the middle columns.
+      fixed: "left",
+      ellipsis: true,
+      sorter: (a: Dataset, b: Dataset) => {
+        // Case-insensitive string comparison
+        const fileNameA = a.file_name?.toLowerCase() || "";
+        const fileNameB = b.file_name?.toLowerCase() || "";
+        return fileNameA.localeCompare(fileNameB);
+      },
+      render: (fileName: string, record: Dataset) => {
+        const info = sanitizeText(record.additional_information || "");
+        return (
+          <div>
+            <Tooltip title={fileName}>
+              <span className="block max-w-[145px] truncate">{fileName}</span>
+            </Tooltip>
+            {info && <Tooltip title={info}><span className="block max-w-[145px] truncate text-xs text-slate-500">{info}</span></Tooltip>}
+          </div>
+        );
+      },
+    },
+    {
       title: "ID",
       dataIndex: "id",
       key: "id",
@@ -372,12 +413,13 @@ const DataTable: React.FC<DataTableProps> = ({
       sortDirections: ["descend", "ascend"] as SortOrder[],
       sorter: (a: Dataset, b: Dataset) => a.id - b.id,
       width: 70,
+      responsive: ["lg"] as const,
     },
     {
       title: "Date",
       dataIndex: "aquisition_day",
       key: "aquisition_day",
-      responsive: ["sm"] as const,
+      responsive: ["lg"] as const,
       width: 95,
       sorter: (a: Dataset, b: Dataset) => {
         // Create comparable date values (YYYYMMDD format for sorting)
@@ -394,28 +436,10 @@ const DataTable: React.FC<DataTableProps> = ({
       ),
     },
     {
-      title: "File Name",
-      dataIndex: "file_name",
-      key: "file_name",
-      width: 165,
-      ellipsis: true,
-      sorter: (a: Dataset, b: Dataset) => {
-        // Case-insensitive string comparison
-        const fileNameA = a.file_name?.toLowerCase() || "";
-        const fileNameB = b.file_name?.toLowerCase() || "";
-        return fileNameA.localeCompare(fileNameB);
-      },
-      render: (fileName: string) => (
-        <Tooltip title={fileName}>
-          <span className="block max-w-[145px] truncate">{fileName}</span>
-        </Tooltip>
-      ),
-    },
-    {
       title: "Authors",
       dataIndex: "authors",
       key: "authors",
-      responsive: ["md"] as const,
+      responsive: ["lg"] as const,
       width: 150,
       render: (authors: string[] | undefined, record: Dataset) => {
         if (!authors || authors.length === 0) return null;
@@ -460,31 +484,10 @@ const DataTable: React.FC<DataTableProps> = ({
       },
     },
     {
-      title: "Info",
-      dataIndex: "additional_information",
-      key: "additional_information",
-      responsive: ["lg"] as const,
-      width: 130,
-      ellipsis: true,
-      render: (info: string | undefined) => {
-        if (!info) return null;
-
-        // Clean the additional information text to fix encoding issues
-        const cleanedInfo = sanitizeText(info);
-        if (!cleanedInfo) return null;
-
-        return (
-          <Tooltip title={cleanedInfo}>
-            <span className="block max-w-[115px] truncate">{cleanedInfo}</span>
-          </Tooltip>
-        );
-      },
-    },
-    {
       title: "Access",
       dataIndex: "data_access",
       key: "data_access",
-      responsive: ["sm"] as const,
+      responsive: ["lg"] as const,
       width: 85,
       filters: [
         { text: "Public", value: "public" },
@@ -502,6 +505,7 @@ const DataTable: React.FC<DataTableProps> = ({
       title: "Publication",
       dataIndex: "freidata_doi",
       key: "publication_status",
+      responsive: ["lg"] as const,
       width: 145,
       render: (freidataDoiValue: string | undefined, record: Dataset) => {
         // Dataset has a FreiDATA DOI
@@ -584,69 +588,81 @@ const DataTable: React.FC<DataTableProps> = ({
     },
     {
       title: "Status",
-      dataIndex: "current_status",
-      key: "current_status",
-      responsive: ["sm"] as const,
-      width: 160,
-      render: (tag: string | undefined, record: Dataset) => {
-        // Handle audit status separately as it's not part of the main processing pipeline
-        if (tag === "audit_in_progress") {
+      key: "status",
+      width: 205,
+      fixed: "right",
+      render: (_: unknown, record: Dataset) => (
+        <StatusCell
+          dataset={record}
+          queue={queueFor(record.id)}
+          onDetails={(trigger) => openDetails(record.id, trigger)}
+        />
+      ),
+    },
+    {
+      title: "Map",
+      key: "map",
+      width: 120,
+      fixed: "right",
+      align: "left",
+      render: (_: unknown, record: Dataset) => {
+        if (canOpenOwnerMap(record)) {
           return (
-            <Tooltip title="Quality check in progress">
-              <Tag icon={<SyncOutlined spin />} color="warning">
-                audit
-              </Tag>
-            </Tooltip>
+            <Button
+              size="small"
+              icon={<EnvironmentOutlined />}
+              onClick={() => viewMap(record.id)}
+              aria-label={`View map for dataset ${record.id}`}
+            >
+              View map
+            </Button>
           );
         }
-
-        const progress = <ProcessingProgress dataset={record} queueInfo={queueById?.[record.id]} />;
-
-        const isComplete = isDatasetComplete(record);
-        const normalizedAssessment = record.final_assessment === "ready" ? "no_issues" : record.final_assessment;
-        const audit = normalizedAssessment
-          ? {
-            final_assessment: normalizedAssessment,
-            audit_date: record.audit_date ?? null,
-            deadwood_quality: record.deadwood_quality ?? null,
-            forest_cover_quality: record.forest_cover_quality ?? null,
-            has_valid_phenology: record.has_valid_phenology ?? null,
-            has_valid_acquisition_date: record.has_valid_acquisition_date ?? null,
-          }
-          : null;
-
-        if (isComplete && audit?.final_assessment) {
-          return <AuditBadge datasetId={record.id} audit={audit} />;
-        }
-
-        return progress;
+        const processing = processingStatus(record, queueFor(record.id)).kind;
+        const settled = processing === "failed" || processing === "incomplete" || processing === "complete";
+        return (
+          <span className="whitespace-nowrap text-xs text-slate-400" aria-hidden={!settled}>
+            {settled ? "No map" : ""}
+          </span>
+        );
       },
     },
     {
       title: "Actions",
       dataIndex: "id",
       key: "actions",
-      width: 110,
-      render: (_: number, record: Dataset) => {
-        return (
-          <Dropdown menu={{ items: getActionMenuItems(record) }} trigger={["click"]} placement="bottomRight">
-            <Button size="small">
-              Actions <DownOutlined />
-            </Button>
-          </Dropdown>
-        );
-      },
+      width: 105,
+      fixed: "right",
+      align: "left",
+      render: (_: number, record: Dataset) => (
+        <Dropdown menu={{ items: getActionMenuItems(record) }} trigger={["click"]} placement="bottomRight">
+          <Button size="small">
+            Actions <DownOutlined />
+          </Button>
+        </Dropdown>
+      ),
     },
   ];
 
   return (
     <>
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      {isDataError && <Alert className="mb-4" type="error" message="Your datasets could not be loaded. Please refresh to try again." />}
+      {(selection.isError || selection.isMissing) && <Alert className="mb-4" type="warning" message={selection.isError ? "Dataset status could not be loaded. Please refresh to try again." : "This dataset is not available in your account."} closable onClose={() => selection.select()} />}
+      {selection.dataset && (
+        <StatusDrawer
+          key={selection.dataset.id}
+          dataset={selection.dataset}
+          queue={queueFor(selection.dataset.id)}
+          onClose={closeDetails}
+          onViewMap={viewMap}
+        />
+      )}
+      {isMobile ? <MobileDatasets datasets={sortedUserData} loading={isLoadingData} queueFor={queueFor} onDetails={openDetails} onViewMap={viewMap} /> : <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <Table
           rowKey={"id"}
           dataSource={sortedUserData}
           columns={columns}
-          scroll={{ x: isMobile ? 720 : "max-content" }}
+          scroll={{ x: "max-content" }}
           pagination={{ pageSize: 50 }}
           loading={isLoadingData}
           rowClassName={(record) => {
@@ -654,7 +670,7 @@ const DataTable: React.FC<DataTableProps> = ({
             return isSelected ? "bg-blue-50 hover:bg-blue-100" : "";
           }}
         />
-      </div>
+      </div>}
 
       {selectedDatasetForEdit && (
         <EditDatasetModal visible={editModalVisible} onClose={handleCloseEditModal} dataset={selectedDatasetForEdit} />

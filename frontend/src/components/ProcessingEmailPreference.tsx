@@ -16,18 +16,18 @@ export default function ProcessingEmailPreference({
   return (
     <section
       aria-labelledby="processing-email-preference-title"
-      className="mb-8 flex items-center justify-between gap-6 rounded-lg border border-gray-200 bg-white px-5 py-4"
+      className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3"
     >
       <div className="flex min-w-0 items-start gap-3">
-        <MailOutlined className="mt-1 text-lg text-gray-600" aria-hidden />
+        <MailOutlined className="mt-0.5 text-base text-gray-600" aria-hidden />
         <div className="min-w-0">
           <Typography.Text
             id="processing-email-preference-title"
-            className="block font-semibold text-gray-900"
+            className="block text-sm font-semibold text-gray-900"
           >
             Processing emails
           </Typography.Text>
-          <Typography.Text type={error ? "danger" : "secondary"} className="text-sm">
+          <Typography.Text type={error ? "danger" : "secondary"} className="text-xs">
             {error
               ? "Your preference could not be loaded or saved."
               : "Email me when dataset processing completes or fails."}

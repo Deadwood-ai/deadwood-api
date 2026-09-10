@@ -11,7 +11,6 @@ import { FileOutlined } from "@ant-design/icons";
 import PublicationModal from "../components/PublicationModal";
 import PublicationsTable from "../components/PublicationsTable";
 import { useIsMobile } from "../hooks/useIsMobile";
-import DesktopOnlyFeatureNotice from "../components/DesktopOnlyFeatureNotice";
 import { useAnalytics } from "../hooks/useAnalytics";
 import ProcessingEmailPreference from "../components/ProcessingEmailPreference";
 
@@ -96,17 +95,17 @@ export default function ProfilePage() {
   } else {
     if (isMobile) {
       return (
-        <div className="min-h-[calc(100vh-64px)] w-full bg-[#F8FAF9] pb-24 pt-24">
+        <div className="min-h-[calc(100vh-64px)] w-full bg-[#F8FAF9] pb-16 pt-24">
           <div className="mx-auto max-w-3xl px-4">
-            <div className="mb-6 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
               <Badge count={myFlags.length} color="red">
-                <ProfileAvatar email={user?.email ?? ""} size={72} />
+                <ProfileAvatar email={user?.email ?? ""} size={44} />
               </Badge>
               <div className="min-w-0">
-                <Typography.Title level={3} style={{ margin: 0 }}>
+                <Typography.Title level={5} style={{ margin: 0 }}>
                   My Account
                 </Typography.Title>
-                <Typography.Text className="break-all text-sm" type="secondary">
+                <Typography.Text className="block truncate text-xs" type="secondary">
                   {user?.email}
                 </Typography.Text>
               </div>
@@ -114,18 +113,13 @@ export default function ProfilePage() {
 
             <ProcessingEmailPreference userId={user?.id} />
 
-            <DesktopOnlyFeatureNotice
-              title="Account Tools Are Desktop Only"
-              description="Uploads, downloads, dataset publishing, and file management are currently disabled on mobile. Please open your account on a desktop browser for those tools."
-              actions={
-                <>
-                  <Button type="primary" onClick={() => navigate("/deadtrees")}>
-                    Explore Satellite Maps
-                  </Button>
-                  <Button onClick={() => navigate("/dataset")}>Browse Dataset Archive</Button>
-                </>
-              }
-            />
+            <section aria-label="My datasets">
+              <h2 className="mb-1 text-lg font-semibold">My datasets</h2>
+              <p className="mb-3 text-xs text-slate-500" data-testid="mobile-desktop-only-note">
+                Uploads, publishing and dataset management are available on a desktop browser.
+              </p>
+              <DataTable />
+            </section>
           </div>
         </div>
       );
@@ -134,7 +128,7 @@ export default function ProfilePage() {
     return (
       <div className="w-full bg-[#F8FAF9] min-h-[calc(100vh-64px)] pb-24 pt-24 md:pt-28">
         <div className="mx-auto max-w-[1920px] px-4 md:px-8 xl:px-12">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-8 pb-8 md:pb-12">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-8 pb-8 lg:pb-12">
             <div className="flex items-center gap-6">
               <Badge count={myFlags.length} color="red">
                 <ProfileAvatar email={user?.email ?? ""} size={96} />
@@ -148,7 +142,7 @@ export default function ProfilePage() {
                 </Typography.Text>
               </div>
             </div>
-            <div className="w-full md:w-auto md:max-w-2xl">
+            <div className="w-full lg:w-auto lg:max-w-2xl">
               <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="text-xl">💡</div>

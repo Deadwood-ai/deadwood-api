@@ -114,5 +114,6 @@ def test_process_task_rejects_downstream_without_geotiff(monkeypatch):
 			'current_status': StatusEnum.idle,
 			'has_error': True,
 			'error_message': str(exc_info.value),
+			'error_stage': 'geotiff_dependency',
 		}
 	]

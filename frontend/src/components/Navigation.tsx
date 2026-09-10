@@ -137,7 +137,9 @@ export default function Navigation() {
 
   return (
     <>
-      <div className="hidden md:flex justify-center w-full fixed top-0 z-50 pt-4 px-4 pb-2 pointer-events-none">
+      <div
+        className="dt-nav-shell hidden lg:flex justify-center w-full fixed top-0 z-50 pt-4 px-4 pb-2"
+      >
         <Header
           className="w-full pointer-events-auto"
           style={{
@@ -155,7 +157,7 @@ export default function Navigation() {
             lineHeight: "64px",
           }}
         >
-          <div className="flex flex-1 items-center justify-center md:justify-start">
+          <div className="flex flex-1 items-center justify-center lg:justify-start">
             <img
               src="/assets/logo.png"
               alt="deadtrees.earth"
@@ -188,7 +190,9 @@ export default function Navigation() {
         </Header>
       </div>
 
-      <div className="dt-mobile-nav-shell md:hidden fixed top-0 z-50 w-full px-2 pointer-events-none">
+      <div
+        className="dt-nav-shell dt-mobile-nav-shell lg:hidden fixed top-0 z-50 w-full px-2 pb-2"
+      >
         <Header
           className="pointer-events-auto"
           style={{
