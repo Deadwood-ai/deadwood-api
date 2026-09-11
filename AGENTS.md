@@ -20,9 +20,9 @@ the linked docs that match the task.
   `rg`, `jq`, `head`, `tail`, and explicit output limits.
 - Production code changes should land through PR review and the merge-to-main deploy path.
   Manual production intervention requires explicit user approval.
-- For database work, use the configured Supabase/Postgres MCP or documented local database
-  path. Treat production database writes as off-limits unless the user explicitly authorizes
-  a specific write.
+- For routine production reads, follow [trusted analyst access](docs/playbooks/analyst-database-access.md).
+  For local database work, use the configured local Supabase/Postgres MCP or documented
+  isolated database path. Production writes require explicit authorization for a specific write.
 
 ## Local Test Environment
 

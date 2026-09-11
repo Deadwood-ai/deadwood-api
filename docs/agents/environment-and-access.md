@@ -17,6 +17,16 @@ credentials belong. It intentionally contains no real secrets.
 | Frontend example | `frontend/.env.local.example` | yes | no |
 | Local keys/assets | `.local/`, `assets/`, `data/` | no | yes or large data |
 
+## Production Database Reads
+
+Use [trusted analyst access](../playbooks/analyst-database-access.md) for routine
+production SQL. It defines the runtime credential contract, direct client and
+required preflight independently of any colleague's credential provider or host.
+Keep analyst credentials separate from application env and frontend profiles.
+Existing purpose-specific monitor connections and local MCP configuration remain
+separate; a configured connector or copied local file does not verify access on
+this host. Missing access is a coverage gap, not a reason to use an administrator.
+
 ## Root `.env`
 
 Use root `.env` for application/runtime variables loaded by Docker Compose,

@@ -28,8 +28,72 @@ is not a database-wide read-only guarantee. Always use `BEGIN READ ONLY`,
 short transaction-local timeouts, and a trusted client. Never grant analyst
 membership to an application role or a login with other write privileges.
 
-## Provision and connect
+## Routine production reads
 
+Use direct Python `psycopg` with the provisioned `team_analyst` login for routine
+production investigation. Do not use production PostgreSQL MCP or fall back to
+an administrator. Existing purpose-specific monitor connections remain separate;
+their metadata-only grants are described in
+[operator data coverage](operator-data-coverage.md#dedicated-monitor-column-limited-reads).
+
+The runtime must supply the complete connection URI as
+`DEADTREES_ANALYST_DATABASE_URL` through your approved credential provider or
+protected local environment. No particular password manager, personal helper,
+mount path or colleague's machine is required. Obtain authorized access using
+your team's credential process; missing credentials are an access gap. Preserve
+application `.env` values, and never print the URI or put it in tracked files,
+command arguments, logs or frontend env. The shared login does not provide
+individual attribution or individual revocation.
+
+Verify that the configured endpoint is the intended production target without
+printing secrets. Use its actual pooler username convention, which can differ
+from PostgreSQL's `current_user`. Install
+[`scripts/requirements-analyst.txt`](../../scripts/requirements-analyst.txt) in
+your checkout's Python environment:
+
+```bash
+venv/bin/python -m pip install -r scripts/requirements-analyst.txt
+```
+
+Run queries in an explicit read-only transaction with bounded timeouts and
+transaction-pooler-compatible preparation disabled. Verify database, login,
+analyst membership and read-only mode before reading application data:
+
+```python
+import os
+import psycopg
+
+# Your credential provider supplies the variable to this process.
+with psycopg.connect(os.environ['DEADTREES_ANALYST_DATABASE_URL'],
+                     prepare_threshold=None, connect_timeout=10,
+                     autocommit=True) as db:
+    db.execute('BEGIN READ ONLY')
+    try:
+        db.execute("SET LOCAL statement_timeout = '30s'")
+        db.execute("SET LOCAL lock_timeout = '3s'")
+        identity = db.execute(
+            "SELECT current_database(), current_user, session_user, "
+            "pg_has_role(current_user, 'analyst', 'MEMBER'), "
+            "current_setting('transaction_read_only')"
+        ).fetchone()
+        if identity != ('postgres', 'team_analyst', 'team_analyst', True, 'on'):
+            raise RuntimeError('Unexpected analyst target, identity or transaction mode')
+        rows = db.execute('SELECT id FROM public.v2_datasets '
+                          'ORDER BY id DESC LIMIT 5').fetchall()
+    finally:
+        db.execute('ROLLBACK')
+```
+
+Use base tables, explicit columns, filters, parameterized values and bounded
+results. JWT-scoped API views are not part of this access. The
+[query skill](../../.agents/skills/deadtrees-production-query/SKILL.md) provides
+join guidance. Report inaccessible or denied data as unknown, not zero. A failed
+identity check stops investigation; it does not authorize access or grant changes.
+Never test write denials in production.
+
+## Provisioning and permission validation
+
+Provisioning is a separate, explicitly authorized administration operation.
 Deploy the reviewed migration through the merge-to-main migration workflow.
 Then an authorized administrator provisions a strong password and enables
 LOGIN for `team_analyst` through the configured direct database administration
@@ -38,22 +102,8 @@ supply them in memory through the credential store. Do not rotate other logins.
 The shared identity has a 20-connection limit, 30-second statement timeout,
 3-second lock timeout and `default_transaction_read_only=on`.
 
-Store the complete URI as concealed `DEADTREES_ANALYST_DATABASE_URL` in the
-project's approved 1Password Developer Environment. Mount it in an ignored
-operator file such as `.local/analyst.env`; preserve existing application `.env`
-values. Use the configured endpoint and actual pooler username convention,
-which can differ from PostgreSQL's `current_user`. Never put it in frontend env
-files. Each colleague needs authorized access to that Environment; the shared
-login does not provide individual attribution or individual revocation.
-
-Install `scripts/requirements-analyst.txt` in the checkout's `venv`. Load only
-the selected operator environment at runtime (for example with
-`dotenv.load_dotenv('.local/analyst.env')`). The
-[query skill](../../.agents/skills/deadtrees-production-query/SKILL.md) provides
-the direct psycopg example, identity check and join guidance.
-
-Verify production with catalog reads and representative queries in an explicit
-read-only transaction: new identity/membership, private and archived datasets,
+Verify production with catalog reads and representative queries in the explicit
+read-only transaction above: identity/membership, private and archived datasets,
 output metadata, audit detail, owner lookup and notification diagnostics.
 Verify existing monitor access separately. Production write-denial probes are
 not permitted by this verification procedure.

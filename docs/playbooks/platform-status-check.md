@@ -17,7 +17,7 @@ track and intentionally contains no credentials.
 
 Check the surfaces relevant to the question:
 
-- production database or Postgres/Supabase MCP
+- production database through [trusted analyst access](analyst-database-access.md)
 - processing queue, `v2_statuses`, `v2_logs`, and recent failures
 - storage/API server health and public API contract
 - processing server/container heartbeat when host access is needed
@@ -43,7 +43,10 @@ full platform check inside that broader operator cadence.
    ```
 
    Use this as the first-pass summary, then drill down only into warnings,
-   failures, skipped surfaces, or user-visible symptoms.
+   failures, skipped surfaces, or user-visible symptoms. Its optional database
+   probe uses the separate monitor connection described in
+   [Operator Chat](operator-chat.md#manual-status-refresh); it does not load or
+   verify analyst access.
 
    To include backup freshness when connected to the university network or VPN,
    point the backup probe at the backup user. The script uses the documented
@@ -87,11 +90,10 @@ full platform check inside that broader operator cadence.
    test -d docs/ops
    ```
 
-2. Verify database identity with a tiny read-only query:
-
-   ```sql
-   select current_database() as db, now() as server_time;
-   ```
+2. Run the [analyst preflight](analyst-database-access.md#routine-production-reads)
+   before production SQL. It verifies database, login, role membership and
+   transaction read-only mode. Local access files alone do not establish access;
+   report a failed or unavailable connection as unknown, not zero.
 
 3. Smoke the public API:
 

@@ -423,7 +423,7 @@ def next_checks(snapshot: dict[str, Any]) -> list[str]:
 	if repo.get('divergence', {}).get('behind'):
 		checks.append('inspect upstream commits, then pull only if the tree is clean')
 	if snapshot['platform']['database'].get('ok') is None:
-		checks.append('run DB aggregate via connector or set DEADTREES_OPERATOR_DATABASE_URL')
+		checks.append('run DB aggregates via docs/playbooks/analyst-database-access.md; existing monitor probes use DEADTREES_OPERATOR_DATABASE_URL')
 	if snapshot['platform']['hosts']['backups'].get('ok') is None:
 		checks.append('configure backup host/path or command for freshness probe')
 	checks.append('run PostHog/Linear/Gmail/Zulip connector deltas')
