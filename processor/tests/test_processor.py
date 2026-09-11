@@ -754,6 +754,7 @@ def test_background_process_fails_crashed_dataset(crashed_dataset_task, auth_tok
 		assert status['has_error'] is True, 'Crashed task should be marked as error'
 		assert status['current_status'] == 'idle', 'Status should be reset to idle'
 		assert status['error_message'] is not None, 'Error message should describe the crash'
+		assert status['error_stage'] == 'deadwood_segmentation'
 
 	assert len(linear_calls) == 1, 'A Linear issue should be filed for the crash'
 	assert linear_calls[0]['dataset_id'] == dataset_id
@@ -986,3 +987,4 @@ def test_graceful_shutdown_requeues_inflight_task(crashed_dataset_task, auth_tok
 		assert status['has_error'] is False, 'Graceful interruption is not an error'
 		assert status['current_status'] == 'idle', 'Status should be reset to idle'
 		assert status['error_message'] is None
+		assert status['error_stage'] is None

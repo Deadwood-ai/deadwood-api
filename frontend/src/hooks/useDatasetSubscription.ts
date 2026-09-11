@@ -82,10 +82,12 @@ export function useDatasetSubscription() {
             const hadError = oldStatusData && oldStatusData.has_error;
             const hasErrorNow = statusData && statusData.has_error;
 
-            // Always update user datasets for progress tracking
-            await queryClient.invalidateQueries({
-              queryKey: ["userDatasets", session?.user?.id],
-            });
+            // Refresh account rows and any open status/review details together.
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["userDatasets", session?.user?.id] }),
+              queryClient.invalidateQueries({ queryKey: ["owner-dataset-status", session?.user?.id, statusData.dataset_id] }),
+              queryClient.invalidateQueries({ queryKey: ["owner-review-details", session?.user?.id, statusData.dataset_id] }),
+            ]);
 
             // Show completion notification if processing just completed
             if (!wasProcessingComplete && isNowProcessingComplete) {
@@ -94,7 +96,7 @@ export function useDatasetSubscription() {
 
             // Show error notification if processing just failed
             if (!hadError && hasErrorNow) {
-              showProcessingErrorNotification(datasetInfo.file_name || "Dataset", statusData.error_message);
+              showProcessingErrorNotification(datasetInfo.file_name || "Dataset", statusData.dataset_id);
             }
 
             // Only update global datasets and authors when processing is complete

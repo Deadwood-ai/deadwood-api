@@ -224,6 +224,7 @@ class Status(BaseModel):
 	is_odm_done: bool = False
 	has_error: bool = False
 	error_message: Optional[str] = None
+	error_stage: Optional[str] = None
 	created_at: Optional[datetime] = None
 	updated_at: Optional[datetime] = None
 

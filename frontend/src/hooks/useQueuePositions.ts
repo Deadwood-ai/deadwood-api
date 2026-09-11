@@ -14,7 +14,7 @@ export function useQueuePositions(datasetIds: number[] | undefined) {
   return useQuery<QueueInfoByDatasetId>({
     queryKey: ["queue-positions", Array.isArray(datasetIds) ? [...new Set(datasetIds)].sort((a, b) => a - b) : []],
     enabled: !!datasetIds && datasetIds.length > 0,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!datasetIds || datasetIds.length === 0) {
         return {};
       }
@@ -33,7 +33,9 @@ export function useQueuePositions(datasetIds: number[] | undefined) {
           const { data, error } = await supabase
             .from("v2_queue_positions")
             .select("dataset_id,current_position,estimated_time,task_types")
-            .in("dataset_id", ids);
+            .in("dataset_id", ids)
+            .abortSignal(signal)
+            .retry(false);
           if (error) throw error;
           return data as unknown as QueueInfo[];
         }),
@@ -49,6 +51,8 @@ export function useQueuePositions(datasetIds: number[] | undefined) {
       }
       return byId;
     },
+    // React Query owns retries; avoid nesting the SDK retry loop inside it.
+    retry: 1,
     staleTime: 15 * 1000,
     gcTime: 60 * 1000,
     refetchInterval: 15 * 1000,

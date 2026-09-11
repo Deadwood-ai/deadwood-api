@@ -47,7 +47,9 @@ def dataset_failed_email(
 	)
 	text_body = (
 		f'Processing failed for dataset {dataset_id} ({file_name}).\n\n'
-		'The DeadTrees team has recorded the failure. You can retry processing from your account.'
+		'The DeadTrees team has recorded the failure. Open your dataset status for details and available results.'
+		f'\n\nView dataset status: {ACCOUNT_URL}?dataset={dataset_id}'
+		'\n\nFor help, contact info@deadtrees.earth.'
 		f'{holiday_note_text}\n\n'
 		f'Manage processing emails: {ACCOUNT_URL}'
 	)
@@ -68,7 +70,8 @@ def dataset_failed_email(
 					<td style="padding: 8px 12px; color: #333;">{safe_file_name}</td>
 				</tr>
 			</table>
-			<p style="color: #333;">The DeadTrees team has recorded the failure. You can retry processing from your account.</p>
+			<p style="color: #333;">The DeadTrees team has recorded the failure. Open your dataset status for details and available results.</p>
+			<p><a href="{ACCOUNT_URL}?dataset={dataset_id}">View dataset status</a></p>
 			{holiday_note_html}
 			<p style="color: #666; font-size: 13px;">
 				If the problem persists, contact

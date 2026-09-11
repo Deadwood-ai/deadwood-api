@@ -353,6 +353,7 @@ def test_outbox_persistence_failure_keeps_failed_queue_task(monkeypatch):
 		'current_status': StatusEnum.idle,
 		'has_error': True,
 		'error_message': 'metadata processing failed: failed',
+		'error_stage': 'metadata',
 	}]
 	assert processor_module._inflight_task is None
 

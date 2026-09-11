@@ -496,3 +496,15 @@ def test_partial_success_returns_empty_notification_batch(monkeypatch):
 
 	assert batch.events == []
 	assert batch.file_name == 'forest.tif'
+
+
+@pytest.mark.unit
+def test_failure_email_links_to_status_without_unsupported_retry_or_diagnostics():
+	from shared.notifications.templates import dataset_failed_email
+	_, text, html = dataset_failed_email(123, '<forest>.tif', error_message='secret internal path')
+	for body in (text, html):
+		assert 'https://deadtrees.earth/profile?dataset=123' in body
+		assert 'info@deadtrees.earth' in body
+		assert 'retry processing from your account' not in body
+		assert 'secret internal path' not in body
+	assert '&lt;forest&gt;.tif' in html

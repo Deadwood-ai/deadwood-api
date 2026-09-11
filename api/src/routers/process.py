@@ -44,6 +44,7 @@ def _failed_requeue_reset_fields(task_types: list[TaskTypeEnum]) -> dict:
 	reset_fields = {
 		'has_error': False,
 		'error_message': None,
+		'error_stage': None,
 		'current_status': 'idle',
 	}
 	for task_type in task_types:

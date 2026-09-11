@@ -40,7 +40,7 @@ export const useProcessingNotification = () => {
     });
   };
 
-  const showProcessingErrorNotification = (datasetName: string, errorMessage?: string) => {
+  const showProcessingErrorNotification = (datasetName: string, datasetId: number) => {
     notification.error({
       message: "Processing Failed",
       description: (
@@ -48,7 +48,8 @@ export const useProcessingNotification = () => {
           <div className="mb-2">
             <strong>{datasetName}</strong> failed to process.
           </div>
-          {errorMessage && <div className="text-sm text-gray-600">{errorMessage}</div>}
+          <p className="text-sm text-gray-600">The team has recorded the failure.</p>
+          <Button size="small" onClick={() => navigate(`/profile?dataset=${datasetId}`)}>View dataset status</Button>
         </div>
       ),
       duration: 8,

@@ -26,6 +26,7 @@ def update_status(
 	is_odm_done: Optional[bool] = None,
 	has_error: Optional[bool] = None,
 	error_message: Optional[str] = None,
+	error_stage: Optional[str] = None,
 ) -> None:
 	"""Update the status fields of a dataset in the statuses table.
 	Only provided fields will be updated.
@@ -78,6 +79,10 @@ def update_status(
 			update_data['is_odm_done'] = is_odm_done
 		if has_error is not None:
 			update_data['has_error'] = has_error
+		if has_error is False:
+			update_data['error_stage'] = None
+		elif has_error is True or error_stage is not None:
+			update_data['error_stage'] = error_stage
 		if error_message is not None:
 			update_data['error_message'] = error_message
 

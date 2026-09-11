@@ -419,6 +419,34 @@
   box-shadow: inset 3px 0 #059669;
 }
 
+/* Contributor status tags keep Ant Design's preset backgrounds but use darker
+   semantic foregrounds so 12px text stays readable (>= 4.5:1). */
+.dt-status-tag.ant-tag-warning {
+  color: #8a4b00;
+}
+
+.dt-status-tag.ant-tag-success {
+  color: #1f6b3a;
+}
+
+.dt-status-tag.ant-tag-processing {
+  color: #1d4ed8;
+}
+
+.dt-status-tag.ant-tag-error {
+  color: #b42318;
+}
+
+.dt-status-tag.ant-tag-default {
+  color: #475569;
+}
+
+/* Opaque band behind the floating header pill so scrolled page content never
+   shows in, or receives clicks through, the gutters around it. */
+.dt-nav-shell {
+  background: #f8faf9;
+}
+
 .dt-mobile-nav-shell {
   padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
 }

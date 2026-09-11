@@ -79,6 +79,11 @@ export function usePublicDatasetById(datasetId: number | undefined) {
 				.eq("id", datasetId)
 				.maybeSingle();
 			if (error) throw error;
+			if (user && (!data || data.user_id === user.id)) {
+				const owner = await supabase.from(Settings.DATA_TABLE_OWNER).select("*").eq("id", datasetId).maybeSingle();
+				if (owner.error) throw owner.error;
+				if (owner.data) return owner.data as IDataset;
+			}
 			return (data as IDataset | null) ?? null;
 		},
 		staleTime: 5 * 60 * 1000,
@@ -102,7 +107,7 @@ export function useDatasetById(datasetId: number | undefined) {
   });
 }
 
-// User-specific datasets - uses public view to exclude excluded and archived datasets
+// Owner account includes excluded datasets; archived rows remain accessible by direct status link.
 export function useUserDatasets(options: DatasetQueryOptions = {}) {
   const { session, status } = useAuth();
 
@@ -110,7 +115,7 @@ export function useUserDatasets(options: DatasetQueryOptions = {}) {
     queryKey: ["userDatasets", session?.user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from(Settings.DATA_TABLE_PUBLIC)
+        .from(Settings.DATA_TABLE_OWNER)
         .select("*")
         .eq("user_id", session?.user.id)
         .eq("archived", false);
