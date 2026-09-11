@@ -7,17 +7,20 @@ and a few anomalous IDs.
 
 ## Connection And Permissions
 
-Verify `session_user`, `current_user`, and the database target. A locally running
-MCP may connect to production; a local `.env` may point to development. Inspect
-the configured endpoint without printing secrets. The production monitoring role
-is `deadtrees_operator_status`. Migration `20260905160000` adds metadata access
-after deployment; a reviewed PR alone does not activate it.
+For routine production queries, follow the target, identity and transaction
+checks in [trusted analyst access](analyst-database-access.md#routine-production-reads).
+That route uses `team_analyst` and supports authorized detail investigations.
+A locally running connector or a local `.env` does not prove which database or
+role it uses. Inspect the configured endpoint without printing secrets.
+
+The separate `deadtrees_operator_status` role serves existing monitoring probes.
+Its column-limited contract is documented below; those exclusions are not the
+analyst contract. Both routes require verified access on the execution host.
+Do not substitute a privileged connection when access fails.
 
 Use explicit columns for column-granted tables. Check `has_column_privilege`
 when `has_table_privilege(..., 'SELECT')` is false. Table grants and RLS are
-separate checks. The monitoring SELECT policies allow platform-wide counts,
-including private datasets, without changing app-user visibility or write access.
-Do not substitute a privileged connection silently when monitoring access fails.
+separate checks. A reviewed migration alone does not establish live permissions.
 
 ## Coverage
 
@@ -60,9 +63,13 @@ No messages does not imply no requests. `notified_at` alone does not prove a
 specific Zulip lifecycle message was sent. Monitoring never invokes `cron`,
 `publish`, or `sync`: these commands mutate data and may submit packages.
 
-## Column-limited reads
+## Dedicated monitor: column-limited reads
 
-All new grants use explicit columns. The allowlist is in
+This section and its privilege expectations apply to `deadtrees_operator_status`,
+not `team_analyst`. The analyst allowlist is in the
+[analyst access playbook](analyst-database-access.md).
+
+The monitor metadata grants use explicit columns. The allowlist is in
 [`20260905160000_operator_monitoring_access.sql`](../../supabase/migrations/20260905160000_operator_monitoring_access.sql).
 Use IDs, lifecycle states, timestamps, counts, sizes and runtime measurements.
 Output JSON, manifests, author/contact fields, free-text audit notes, field

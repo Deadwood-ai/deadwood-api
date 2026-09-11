@@ -83,7 +83,8 @@ Use this template when creating new issues in Linear for the DeadTrees project.
 
 Before creating issues, gather necessary context:
 
-- **Database Schema:** Use the configured Supabase/Postgres MCP or local Supabase CLI to inspect tables.
+- **Database Schema:** Use configured local Supabase/Postgres MCP or Supabase CLI for local tables;
+  follow [trusted analyst access](playbooks/analyst-database-access.md) for production reads.
 - **Key Tables:** `v2_datasets`, `v2_statuses`, `v2_queue`, `v2_logs`, `v2_labels`, `v2_orthos`
 - **Codebase:** Use `rg` and existing module patterns before proposing work.
 - **Upload Flow:** Check `frontend/src/components/Upload/`, `api/src/routers/upload.py`, and `api/src/upload/`.

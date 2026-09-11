@@ -83,8 +83,10 @@ when explicitly needed and approved.
 
 - For Supabase/database work, use the Supabase skill when available, then apply
   the DeadTrees-specific rules in this section.
-- Prefer configured Supabase/Postgres MCP tools for inspection.
-- Verify the target database with a tiny read-only query before trusting a live surface.
+- Use [trusted analyst access](../playbooks/analyst-database-access.md) for routine
+  production inspection, including its target, identity and read-only preflight.
+- Configured Supabase/Postgres MCP tools remain useful for local inspection;
+  verify their target before use. They are not the routine production SQL route.
 - Treat production writes as explicit-approval operations.
 - Migrations use the direct database port; application traffic uses the pooler port.
 - Drop dependent views before altering referenced columns, then recreate the views.

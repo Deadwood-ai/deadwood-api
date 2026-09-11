@@ -9,7 +9,8 @@ When planning begins with a Linear issue ID:
 
 3. **Gather additional context as needed:**
    - Use `rg` and current code paths to understand implementation patterns
-   - Use the configured Supabase/Postgres MCP or local Supabase CLI to inspect database schema and tables
+   - Inspect local schema with configured local Supabase/Postgres MCP or Supabase CLI;
+     use [trusted analyst access](playbooks/analyst-database-access.md) for production reads
    - Review related files and components mentioned in the issue
 4. **Only after gathering context** - if there are still unclear parts, begin the questioning process
 

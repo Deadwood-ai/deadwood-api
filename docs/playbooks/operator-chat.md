@@ -79,7 +79,8 @@ probes, optional backup freshness, and writes ignored compact state to:
 Production-only checks are opt-in through local environment variables so the
 tracked script contains no credentials:
 
-- `DEADTREES_OPERATOR_DATABASE_URL` for a read-only `psql` summary.
+- `DEADTREES_OPERATOR_DATABASE_URL` for the existing purpose-specific monitor
+  `psql` summary; this is separate from the routine analyst connection.
 - `DEADTREES_OPERATOR_PROCESSING_HOST` for processing host disk/heartbeat probes.
 - `DEADTREES_OPERATOR_STORAGE_HOST` for storage host disk probes.
 - `DEADTREES_OPERATOR_BACKUP_HOST` plus either `DEADTREES_OPERATOR_BACKUP_PATH`
@@ -103,9 +104,22 @@ snapshot:
 python3 scripts/data_factory_scorecard.py --write-state --format markdown
 ```
 
-This script reports backend truth for input, processing, queue, trust, and
-impact when `DEADTREES_OPERATOR_DATABASE_URL` is available. Without a local DB
-URL, print the exact SQL for the Postgres MCP with:
+Both scripts use `psql` for their optional DB probes. They do not load
+`DEADTREES_ANALYST_DATABASE_URL`, verify analyst identity or start an explicit
+read-only transaction. Preserve existing monitor configuration; do not substitute
+the analyst URI into `DEADTREES_OPERATOR_DATABASE_URL`.
+
+For routine production SQL, use the verified transaction in
+[trusted analyst access](analyst-database-access.md#routine-production-reads).
+Run the aggregates in [platform status](platform-status-check.md#database-queries)
+and [operator data coverage](operator-data-coverage.md#freidata-aggregates)
+inside that transaction.
+
+The full scorecard SQL is not analyst-compatible: it reads download-grant `extra`
+and the JWT-scoped `v2_full_dataset_view`, which analyst access excludes. Existing
+monitor grants do not provide those surfaces either. Keep the scorecard's access
+gap explicit; do not broaden grants or substitute a privileged connection. To
+inspect the current SQL without connecting (not to execute it as an analyst):
 
 ```bash
 python3 scripts/data_factory_scorecard.py --print-sql
